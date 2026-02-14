@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GEII TERMINAL v3.0</title>
+    <title>GEII OS v4.0 - Fintech Edition</title>
     
     <!-- React & Dependencies -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
@@ -11,13 +11,13 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-    <!-- Firebase SDKs (Modular) -->
+    <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot, collection, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        
         window.firebaseModules = { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, getFirestore, doc, setDoc, onSnapshot, collection, getDoc };
     </script>
 
@@ -27,15 +27,23 @@
             theme: {
                 extend: {
                     colors: {
-                        background: '#000000',
-                        surface: '#09090b',
-                        border: '#27272a',
-                        primary: '#ffffff',
-                        secondary: '#a1a1aa',
+                        bg: '#000000',
+                        card: '#1c1c1e',
+                        cardHover: '#2c2c2e',
+                        border: '#3a3a3c',
+                        primary: '#0A84FF',
+                        success: '#30D158',
+                        danger: '#FF453A',
+                        warning: '#FF9F0A',
+                        text: '#FFFFFF',
+                        subtext: '#8E8E93',
                     },
                     fontFamily: {
-                        mono: ['"JetBrains Mono"', 'monospace'],
-                        sans: ['"Inter"', 'sans-serif'],
+                        sans: ['-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
+                        mono: ['"SF Mono"', '"JetBrains Mono"', 'monospace'],
+                    },
+                    backdropBlur: {
+                        xs: '2px',
                     }
                 }
             }
@@ -43,31 +51,22 @@
     </script>
     
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=JetBrains+Mono:wght@400;700&display=swap');
+        body { background-color: #000; color: #fff; -webkit-font-smoothing: antialiased; }
+        .glass { background: rgba(28, 28, 30, 0.6); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .glass-modal { background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(10px); }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         
-        body { background-color: #000000; color: #ffffff; font-family: 'Inter', sans-serif; }
-        
-        /* Utility for "Ultra Pro" aesthetics */
-        .pro-border { border: 1px solid #27272a; }
-        .pro-card { background-color: #09090b; border: 1px solid #27272a; }
-        .mono-num { font-family: 'JetBrains Mono', monospace; letter-spacing: -0.5px; }
-        
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: #000; }
-        ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
-        ::-webkit-scrollbar-thumb:hover { background: #555; }
+        /* Smooth IOS Switch */
+        .ios-switch { position: relative; display: inline-block; width: 40px; height: 24px; }
+        .ios-switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #3a3a3c; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 2px; bottom: 2px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: #30D158; }
+        input:checked + .slider:before { transform: translateX(16px); }
 
-        /* Loader */
-        .loader {
-            width: 16px; height: 16px; border: 2px solid #fff; border-bottom-color: transparent; border-radius: 50%; display: inline-block; box-sizing: border-box; animation: rotation 1s linear infinite;
-        }
-        @keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        
-        .status-dot { height: 8px; width: 8px; border-radius: 50%; display: inline-block; }
-        .dot-green { background-color: #10b981; box-shadow: 0 0 8px #10b981; }
-        .dot-red { background-color: #ef4444; box-shadow: 0 0 8px #ef4444; }
-        .dot-orange { background-color: #f59e0b; box-shadow: 0 0 8px #f59e0b; }
+        .widget-hover:hover { transform: scale(1.02); transition: transform 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94); }
     </style>
 </head>
 <body>
@@ -76,9 +75,8 @@
     <script type="text/babel">
         const { useState, useEffect, useRef, useMemo } = React;
 
-        // --- DATA CONFIGURATION ---
-        
-        const MODULES_CONFIG_S2 = [
+        // --- DATA & CONFIG ---
+        const MODULES_CONFIG = [
             { id: 'R2.01', short: 'AN2', label: 'Analyse', coef21: 1.1, coef22: 0, category: 'Fonda' },
             { id: 'R2.02', short: 'CC2', label: 'Culture Com', coef21: 1.1, coef22: 0, category: 'Trans' },
             { id: 'R2.03', short: 'VE2', label: 'Vie Entr.', coef21: 0.8, coef22: 0, category: 'Trans' },
@@ -91,482 +89,462 @@
             { id: 'R2.10', short: 'PApp2', label: 'Physique App', coef21: 0, coef22: 1.0, category: 'Fonda' },
             { id: 'S2.1', short: 'SAÉ 2.1', label: 'CAPA', coef21: 2.5, coef22: 2.5, category: 'SAÉ' },
             { id: 'S2.2', short: 'SAÉ 2.2', label: 'Robot', coef21: 2.5, coef22: 2.5, category: 'SAÉ' },
-            { id: 'PF2', short: 'PORTFOLIO', label: 'Portfolio S2', coef21: 1.0, coef22: 1.0, category: 'SAÉ' },
+            { id: 'PF2', short: 'PORTF', label: 'Portfolio S2', coef21: 1.0, coef22: 1.0, category: 'SAÉ' },
         ];
 
-        // Génération automatique des dates pour Maths (2 par semaine)
-        const generateMathTasks = () => {
-            let tasks = [];
-            let startDate = new Date('2026-02-02');
-            for(let i=0; i<15; i++) {
-                let d1 = new Date(startDate); d1.setDate(startDate.getDate() + (i*7));
-                let d2 = new Date(startDate); d2.setDate(startDate.getDate() + (i*7) + 3);
-                tasks.push({ module: 'R2.04', title: `QCM Hebdo ${i+1}.1`, end: d1.toISOString().split('T')[0] });
-                tasks.push({ module: 'R2.04', title: `QCM Hebdo ${i+1}.2`, end: d2.toISOString().split('T')[0] });
-            }
-            return tasks;
-        };
-
-        const TASKS_DATA = [
-            // ÉNERGIE (ENER2 - R2.09)
-            { module: 'R2.09', title: 'QCM_TD1', start: '2026-02-02', end: '2026-02-13' },
-            { module: 'R2.09', title: 'QCM_TD2', start: '2026-02-09', end: '2026-03-04' },
-            { module: 'R2.09', title: 'QCM_TD3', start: '2026-02-23', end: '2026-03-06' },
-            { module: 'R2.09', title: 'QCM_TD4', start: '2026-03-02', end: '2026-03-13' }, // Date corrigée (2025->2026)
-            { module: 'R2.09', title: 'QCM_TD6', start: '2026-03-16', end: '2026-03-27' },
-            { module: 'R2.09', title: 'QCM_TD8', start: '2026-03-30', end: '2026-04-24' },
-            { module: 'R2.09', title: 'QCM_TD9', start: '2026-04-20', end: '2026-04-30' },
-            { module: 'R2.09', title: 'QCM_TD11', start: '2026-04-27', end: '2026-05-08' },
-            { module: 'R2.09', title: 'QCM_TD12', start: '2026-05-11', end: '2026-05-21' },
-            
-            // PHYSIQUE (PApp2 - R2.10)
-            { module: 'R2.10', title: 'QCM1_Séance 1', start: '2026-01-26', end: '2026-02-06' },
-            { module: 'R2.10', title: 'QCM2_Séance 2', start: '2026-02-02', end: '2026-02-13' },
-            { module: 'R2.10', title: 'QCM3 - Devoir (PDF)', start: '2026-02-09', end: '2026-02-27', type: 'DEVOIR' },
-            { module: 'R2.10', title: 'QCM4', start: '2026-02-23', end: '2026-03-06' },
-            { module: 'R2.10', title: 'QCM5', start: '2026-03-02', end: '2026-03-13' },
-            { module: 'R2.10', title: 'QCM6', start: '2026-03-09', end: '2026-03-20' },
-            { module: 'R2.10', title: 'QCM7', start: '2026-03-17', end: '2026-03-28' }, // Dates ajustées 2026
-            { module: 'R2.10', title: 'QCM8', start: '2026-03-24', end: '2026-04-04' },
-            { module: 'R2.10', title: 'QCM9', start: '2026-03-01', end: '2026-04-11' }, // Supposition date cohérente
-            { module: 'R2.10', title: 'QCM10', start: '2026-04-07', end: '2026-04-18' },
-            { module: 'R2.10', title: 'QCM11', start: '2026-04-14', end: '2026-05-09' },
-            { module: 'R2.10', title: 'QCM12', start: '2026-05-05', end: '2026-05-16' },
-            { module: 'R2.10', title: 'QCM13', start: '2026-05-12', end: '2026-05-23' },
-            { module: 'R2.10', title: 'QCM14', start: '2026-05-19', end: '2026-05-30' },
-
-            ...generateMathTasks()
-        ];
-
-        // --- COMPONENTS ---
-
-        const Icon = ({ name, size = 16, className = "" }) => {
+        // --- ICONS ---
+        const Icon = ({ name, size = 20, className = "" }) => {
             useEffect(() => { lucide.createIcons(); }, [name]);
             return <i data-lucide={name} width={size} height={size} className={className}></i>;
         };
 
-        const StatCard = ({ title, value, subtext, highlight = false }) => (
-            <div className={`pro-card p-4 flex flex-col justify-between h-32 hover:border-white transition-colors cursor-default group ${highlight ? 'bg-zinc-900' : ''}`}>
-                <div className="flex justify-between items-start">
-                    <span className="text-xs font-bold text-secondary uppercase tracking-widest">{title}</span>
-                    {highlight && <div className="status-dot dot-green animate-pulse"></div>}
-                </div>
-                <div>
-                    <div className="text-4xl font-mono font-bold tracking-tighter group-hover:scale-105 transition-transform origin-left">
-                        {value}
-                    </div>
-                    {subtext && <div className="text-xs text-zinc-500 mt-2 font-mono">{subtext}</div>}
-                </div>
-            </div>
-        );
+        // --- UTILS ---
+        const calculateSubjectAverage = (grades) => {
+            if (!grades || grades.length === 0) return null;
+            let totalPoints = 0;
+            let totalCoef = 0;
+            grades.forEach(g => {
+                totalPoints += parseFloat(g.value) * parseFloat(g.coef);
+                totalCoef += parseFloat(g.coef);
+            });
+            return totalCoef === 0 ? 0 : (totalPoints / totalCoef).toFixed(2);
+        };
 
-        const App = () => {
-            // State
-            const [user, setUser] = useState(null);
-            const [isOffline, setIsOffline] = useState(false); // New Offline Flag
-            const [view, setView] = useState('TASKS'); // Default view TASKS
-            const [gradesS2, setGradesS2] = useState({});
-            const [gradesS1, setGradesS1] = useState({ ue11: '', ue12: '' });
-            const [taskStatus, setTaskStatus] = useState({}); // { taskTitle_module: boolean }
-            const [loading, setLoading] = useState(true);
-            const [friendId, setFriendId] = useState('');
-            const [friendData, setFriendData] = useState(null);
-            const [isPublished, setIsPublished] = useState(false);
+        const getGradeColor = (val) => {
+            if (val === null || val === "—") return "text-subtext";
+            const v = parseFloat(val);
+            if (v < 8) return "text-danger";
+            if (v < 10) return "text-warning";
+            if (v < 14) return "text-primary";
+            return "text-success";
+        };
 
-            // Refs
-            const dbRef = useRef(null);
-            const appIdRef = useRef(typeof __app_id !== 'undefined' ? __app_id : 'default-geii-app');
+        // --- COMPONENTS ---
 
-            // --- INIT LOGIC (OFFLINE/ONLINE) ---
+        // 1. MODAL D'ÉDITION DE NOTES (LE COEUR DU SYSTÈME)
+        const GradeEditorModal = ({ module, grades, onClose, onSave, absences, onAbsenceChange }) => {
+            const [localGrades, setLocalGrades] = useState(grades || []);
+            const [newNote, setNewNote] = useState('');
+            const [newCoef, setNewCoef] = useState('1');
+            const [newName, setNewName] = useState('');
+            const [simulatedAvg, setSimulatedAvg] = useState(null);
+
+            const handleAdd = () => {
+                if (!newNote || !newCoef) return;
+                const newEntry = {
+                    id: Date.now(),
+                    value: parseFloat(newNote),
+                    coef: parseFloat(newCoef),
+                    name: newName || `Note ${localGrades.length + 1}`
+                };
+                const updated = [...localGrades, newEntry];
+                setLocalGrades(updated);
+                setNewNote(''); setNewName('');
+                onSave(updated); // Auto save
+            };
+
+            const handleDelete = (id) => {
+                const updated = localGrades.filter(g => g.id !== id);
+                setLocalGrades(updated);
+                onSave(updated);
+            };
+
+            const currentAvg = calculateSubjectAverage(localGrades) || "—";
+            
+            // Simulateur
             useEffect(() => {
-                const initApp = async () => {
-                    // Check if Firebase config exists in env
-                    const hasFirebaseConfig = typeof __firebase_config !== 'undefined' && __firebase_config !== "";
-                    
-                    if (!hasFirebaseConfig) {
-                        console.log("⚠️ No Firebase Config found. Starting in OFFLINE MODE.");
-                        setIsOffline(true);
-                        setUser({ uid: "offline_user", isAnonymous: true });
+                if (newNote && newCoef) {
+                    const tempGrades = [...localGrades, { value: parseFloat(newNote), coef: parseFloat(newCoef) }];
+                    setSimulatedAvg(calculateSubjectAverage(tempGrades));
+                } else {
+                    setSimulatedAvg(null);
+                }
+            }, [newNote, newCoef, localGrades]);
+
+            return (
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center glass-modal p-0 sm:p-4">
+                    <div className="bg-[#1c1c1e] w-full max-w-lg sm:rounded-2xl rounded-t-2xl border border-white/10 shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in slide-in-from-bottom-10 duration-300">
                         
-                        // Load from LocalStorage
-                        const localGrades = localStorage.getItem('geii_pro_grades');
-                        const localTasks = localStorage.getItem('geii_pro_tasks');
-                        if (localGrades) {
-                            const parsed = JSON.parse(localGrades);
-                            if(parsed.s2) setGradesS2(parsed.s2);
-                            if(parsed.s1) setGradesS1(parsed.s1);
+                        {/* Header */}
+                        <div className="p-4 border-b border-white/10 flex justify-between items-center bg-[#2c2c2e]">
+                            <div>
+                                <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                                    {module.short} 
+                                    <span className={`text-2xl font-mono ${getGradeColor(currentAvg)}`}>{currentAvg}</span>
+                                </h2>
+                                <p className="text-xs text-subtext">{module.label}</p>
+                            </div>
+                            <button onClick={onClose} className="bg-white/10 p-2 rounded-full hover:bg-white/20"><Icon name="x" size={20}/></button>
+                        </div>
+
+                        {/* Content */}
+                        <div className="p-4 overflow-y-auto flex-1 space-y-6">
+                            
+                            {/* Liste des notes */}
+                            <div className="space-y-2">
+                                <label className="text-xs font-bold text-subtext uppercase tracking-wider">Relevé de notes</label>
+                                {localGrades.length === 0 ? (
+                                    <div className="text-center py-6 text-subtext italic">Aucune note saisie.</div>
+                                ) : (
+                                    localGrades.map((g) => (
+                                        <div key={g.id} className="flex justify-between items-center bg-black/40 p-3 rounded-xl border border-white/5">
+                                            <div>
+                                                <div className="font-medium text-sm text-white">{g.name}</div>
+                                                <div className="text-xs text-subtext">Coef: {g.coef}</div>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                <span className={`font-mono font-bold ${getGradeColor(g.value)}`}>{g.value}</span>
+                                                <button onClick={() => handleDelete(g.id)} className="text-danger opacity-50 hover:opacity-100"><Icon name="trash-2" size={16}/></button>
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+
+                            {/* Ajout Note */}
+                            <div className="bg-white/5 p-4 rounded-xl border border-white/10 space-y-3">
+                                <label className="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-2"><Icon name="plus-circle" size={12}/> Ajouter / Simuler</label>
+                                <div className="grid grid-cols-3 gap-2">
+                                    <input type="text" placeholder="Nom (ex: DS1)" value={newName} onChange={e=>setNewName(e.target.value)} className="col-span-3 bg-black border border-white/20 rounded-lg p-2 text-sm focus:border-primary outline-none" />
+                                    <div className="col-span-2 relative">
+                                        <input type="number" placeholder="Note" value={newNote} onChange={e=>setNewNote(e.target.value)} className="w-full bg-black border border-white/20 rounded-lg p-2 text-sm focus:border-primary outline-none" />
+                                        <span className="absolute right-3 top-2 text-subtext text-xs">/20</span>
+                                    </div>
+                                    <input type="number" placeholder="Coef" value={newCoef} onChange={e=>setNewCoef(e.target.value)} className="bg-black border border-white/20 rounded-lg p-2 text-sm focus:border-primary outline-none" />
+                                </div>
+                                <div className="flex justify-between items-center mt-2">
+                                    <div className="text-xs text-subtext">
+                                        {simulatedAvg && <span className="text-warning">Moyenne simulée : {simulatedAvg}</span>}
+                                    </div>
+                                    <button onClick={handleAdd} className="bg-primary hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors">Ajouter</button>
+                                </div>
+                            </div>
+
+                            {/* Absences */}
+                            <div className="flex justify-between items-center bg-black/40 p-3 rounded-xl border border-white/5">
+                                <div className="flex items-center gap-2 text-sm text-subtext">
+                                    <Icon name="clock" size={16} /> Absences injustifiées
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <button onClick={() => onAbsenceChange((absences || 0) - 1)} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20">-</button>
+                                    <span className="font-mono font-bold w-4 text-center">{absences || 0}</span>
+                                    <button onClick={() => onAbsenceChange((absences || 0) + 1)} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20">+</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // 2. WIDGETS
+        const PomodoroWidget = () => {
+            const [timeLeft, setTimeLeft] = useState(25 * 60);
+            const [isActive, setIsActive] = useState(false);
+
+            useEffect(() => {
+                let interval = null;
+                if (isActive && timeLeft > 0) {
+                    interval = setInterval(() => setTimeLeft(timeLeft - 1), 1000);
+                } else if (timeLeft === 0) {
+                    setIsActive(false);
+                }
+                return () => clearInterval(interval);
+            }, [isActive, timeLeft]);
+
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+
+            return (
+                <div className="glass p-4 rounded-2xl flex flex-col justify-between h-full relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity"><Icon name="timer" size={60}/></div>
+                    <div className="text-xs text-subtext font-bold uppercase tracking-wider">Focus Mode</div>
+                    <div className="text-3xl font-mono font-bold text-center my-2">
+                        {minutes}:{seconds < 10 ? `0${seconds}` : seconds}
+                    </div>
+                    <button onClick={() => setIsActive(!isActive)} className={`w-full py-2 rounded-lg text-xs font-bold ${isActive ? 'bg-danger text-white' : 'bg-white/10 text-white hover:bg-white/20'}`}>
+                        {isActive ? 'STOP' : 'START 25min'}
+                    </button>
+                </div>
+            );
+        };
+
+        const TimetableWidget = () => {
+            const today = new Date().getDay(); // 0 = Dimanche, 1 = Lundi...
+            // Mock Data simplifiée pour la démo
+            const schedule = [
+                { day: 1, courses: [{ time: '08:00', name: 'Amphi Élec', room: 'A2' }, { time: '10:00', name: 'TP Info', room: 'I12' }] },
+                { day: 2, courses: [{ time: '09:00', name: 'TD Maths', room: 'B4' }, { time: '14:00', name: 'Anglais', room: 'L2' }] },
+                // ... autres jours
+            ];
+            
+            const days = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+            const todaySchedule = schedule.find(s => s.day === today)?.courses || [];
+
+            return (
+                <div className="glass p-4 rounded-2xl h-full flex flex-col">
+                    <div className="flex justify-between items-start mb-3">
+                        <div className="text-xs text-subtext font-bold uppercase tracking-wider">Planning</div>
+                        <div className="text-xs font-bold text-primary">{days[today] || 'Jour'}</div>
+                    </div>
+                    {todaySchedule.length > 0 ? (
+                        <div className="space-y-2 overflow-y-auto hide-scrollbar">
+                            {todaySchedule.map((c, i) => (
+                                <div key={i} className="flex gap-3 items-center text-sm">
+                                    <span className="font-mono text-subtext text-xs">{c.time}</span>
+                                    <div className="flex-1 bg-white/5 rounded px-2 py-1 border-l-2 border-primary">
+                                        <div className="font-medium text-white">{c.name}</div>
+                                        <div className="text-[10px] text-subtext">{c.room}</div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="flex-1 flex items-center justify-center text-xs text-subtext italic">Aucun cours aujourd'hui</div>
+                    )}
+                </div>
+            );
+        };
+
+        // --- MAIN APP ---
+        const App = () => {
+            const [user, setUser] = useState(null);
+            const [view, setView] = useState('DASHBOARD');
+            const [gradesMap, setGradesMap] = useState({}); // { 'R2.01': [{value: 12, coef:1, name: 'DS'}] }
+            const [absences, setAbsences] = useState({});
+            const [selectedModule, setSelectedModule] = useState(null);
+            
+            // Stats global
+            const [globalAvgS2, setGlobalAvgS2] = useState("—");
+            
+            const dbRef = useRef(null);
+            const appIdRef = useRef(typeof __app_id !== 'undefined' ? __app_id : 'default-fintech-app');
+
+            // --- INIT ---
+            useEffect(() => {
+                const init = async () => {
+                    if (typeof __firebase_config === 'undefined' || !__firebase_config) {
+                        // OFFLINE MOCK
+                        const saved = localStorage.getItem('geii_fintech_data');
+                        if (saved) {
+                            const parsed = JSON.parse(saved);
+                            setGradesMap(parsed.grades || {});
+                            setAbsences(parsed.absences || {});
                         }
-                        if (localTasks) setTaskStatus(JSON.parse(localTasks));
-                        
-                        setLoading(false);
+                        setUser({ uid: 'offline' });
                         return;
                     }
 
-                    // Online Mode (Original Logic)
-                    if (!window.firebaseModules) return;
-                    const { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, getFirestore, doc, onSnapshot } = window.firebaseModules;
-                    
-                    try {
-                        const config = JSON.parse(__firebase_config);
-                        const app = initializeApp(config);
-                        const auth = getAuth(app);
-                        const db = getFirestore(app);
-                        dbRef.current = db;
+                    const { initializeApp, getAuth, signInAnonymously, getFirestore, doc, onSnapshot, signInWithCustomToken } = window.firebaseModules;
+                    const app = initializeApp(JSON.parse(__firebase_config));
+                    const auth = getAuth(app);
+                    const db = getFirestore(app);
+                    dbRef.current = db;
 
-                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                            await signInWithCustomToken(auth, __initial_auth_token);
-                        } else {
-                            await signInAnonymously(auth);
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token);
+                    else await signInAnonymously(auth);
+
+                    onAuthStateChanged(auth, (u) => {
+                        setUser(u);
+                        if (u) {
+                            onSnapshot(doc(db, 'artifacts', appIdRef.current, 'users', u.uid, 'fintech_data'), (snap) => {
+                                if (snap.exists()) {
+                                    setGradesMap(snap.data().grades || {});
+                                    setAbsences(snap.data().absences || {});
+                                }
+                            });
                         }
-
-                        onAuthStateChanged(auth, (currentUser) => {
-                            setUser(currentUser);
-                            if (currentUser) {
-                                const userDocRef = doc(db, 'artifacts', appIdRef.current, 'users', currentUser.uid, 'grades');
-                                const unsub = onSnapshot(userDocRef, (snap) => {
-                                    if (snap.exists()) {
-                                        const data = snap.data();
-                                        if(data.s2) setGradesS2(data.s2);
-                                        if(data.s1) setGradesS1(data.s1);
-                                        if(data.tasks) setTaskStatus(data.tasks);
-                                        if(data.isPublished) setIsPublished(data.isPublished);
-                                    }
-                                    setLoading(false);
-                                }, (err) => console.error("Sync Error", err));
-                                return () => unsub();
-                            }
-                        });
-                    } catch (e) {
-                        console.error("Firebase Init Failed, falling back to offline", e);
-                        setIsOffline(true);
-                        setUser({ uid: "offline_fallback", isAnonymous: true });
-                        setLoading(false);
-                    }
+                    });
                 };
-                initApp();
+                init();
             }, []);
 
-            // --- SAVE LOGIC ---
-            const saveData = async (newS2, newS1, newTasks, publishedStatus) => {
-                const dataToSave = {
-                    s2: newS2 !== undefined ? newS2 : gradesS2,
-                    s1: newS1 !== undefined ? newS1 : gradesS1,
-                    tasks: newTasks !== undefined ? newTasks : taskStatus,
-                    isPublished: publishedStatus !== undefined ? publishedStatus : isPublished,
-                    updatedAt: new Date().toISOString()
-                };
-
-                if (isOffline) {
-                    localStorage.setItem('geii_pro_grades', JSON.stringify({ s2: dataToSave.s2, s1: dataToSave.s1 }));
-                    localStorage.setItem('geii_pro_tasks', JSON.stringify(dataToSave.tasks));
-                } else if (user && dbRef.current && window.firebaseModules) {
+            // --- SAVE ---
+            const saveData = (newGradesMap, newAbsences) => {
+                const g = newGradesMap || gradesMap;
+                const a = newAbsences || absences;
+                
+                if (!dbRef.current) {
+                    localStorage.setItem('geii_fintech_data', JSON.stringify({ grades: g, absences: a }));
+                } else if (user) {
                     const { doc, setDoc } = window.firebaseModules;
-                    try {
-                        await setDoc(doc(dbRef.current, 'artifacts', appIdRef.current, 'users', user.uid, 'grades'), dataToSave, { merge: true });
-                        
-                        if ((publishedStatus !== undefined ? publishedStatus : isPublished)) {
-                            const publicData = {
-                                uid: user.uid,
-                                avg21: calculateAverage('UE21', newS2 || gradesS2),
-                                avg22: calculateAverage('UE22', newS2 || gradesS2),
-                                updatedAt: new Date().toISOString()
-                            };
-                            await setDoc(doc(dbRef.current, 'artifacts', appIdRef.current, 'public', 'data', 'profiles', user.uid), publicData);
-                        }
-                    } catch (e) { console.error("Save failed", e); }
+                    setDoc(doc(dbRef.current, 'artifacts', appIdRef.current, 'users', user.uid, 'fintech_data'), { grades: g, absences: a }, { merge: true });
                 }
             };
 
-            // --- HANDLERS ---
-            const handleGradeChange = (id, val) => {
-                let v = parseFloat(val);
-                if (v < 0) v = 0; if (v > 20) v = 20;
-                const newGrades = { ...gradesS2, [id]: v };
-                setGradesS2(newGrades);
-                saveData(newGrades, undefined, undefined, undefined);
-            };
-
-            const toggleTask = (taskId) => {
-                const newStatus = { ...taskStatus, [taskId]: !taskStatus[taskId] };
-                setTaskStatus(newStatus);
-                saveData(undefined, undefined, newStatus, undefined);
-            };
-
-            // --- CALCULATIONS ---
-            const calculateAverage = (ueType, data = gradesS2) => {
-                let pts = 0, coef = 0;
-                MODULES_CONFIG_S2.forEach(m => {
-                    const c = ueType === 'UE21' ? m.coef21 : m.coef22;
-                    const g = data[m.id];
-                    if (c > 0 && g !== undefined && !isNaN(g)) {
-                        pts += g * c;
-                        coef += c;
+            // --- CALCULS GLOBAUX ---
+            useEffect(() => {
+                let totalPts = 0;
+                let totalCoef = 0;
+                
+                // Pour simplifier, on fait une moyenne globale brute pondérée par les coefs UE21/UE22
+                // Une vraie implémentation ferait UE par UE
+                MODULES_CONFIG.forEach(m => {
+                    const avgStr = calculateSubjectAverage(gradesMap[m.id]);
+                    if (avgStr) {
+                        const avg = parseFloat(avgStr);
+                        const weight = m.coef21 + m.coef22; // Somme des poids
+                        totalPts += avg * weight;
+                        totalCoef += weight;
                     }
                 });
-                return coef === 0 ? "—" : (pts / coef).toFixed(2);
+
+                setGlobalAvgS2(totalCoef === 0 ? "—" : (totalPts / totalCoef).toFixed(2));
+            }, [gradesMap]);
+
+
+            // --- HANDLERS ---
+            const handleModuleClick = (m) => setSelectedModule(m);
+            const handleUpdateGrades = (updatedGrades) => {
+                const newMap = { ...gradesMap, [selectedModule.id]: updatedGrades };
+                setGradesMap(newMap);
+                saveData(newMap, undefined);
+            };
+            const handleAbsenceUpdate = (val) => {
+                const newVal = Math.max(0, val);
+                const newAbs = { ...absences, [selectedModule.id]: newVal };
+                setAbsences(newAbs);
+                saveData(undefined, newAbs);
             };
 
-            const avg21 = calculateAverage('UE21');
-            const avg22 = calculateAverage('UE22');
-            const avgS1 = (gradesS1.ue11 && gradesS1.ue12) ? ((parseFloat(gradesS1.ue11) + parseFloat(gradesS1.ue12)) / 2).toFixed(2) : "—";
-            const avgS2 = (avg21 !== "—" && avg22 !== "—") ? ((parseFloat(avg21) + parseFloat(avg22)) / 2).toFixed(2) : "—";
-            const avgAnnual = (avgS1 !== "—" && avgS2 !== "—") ? ((parseFloat(avgS1) + parseFloat(avgS2)) / 2).toFixed(2) : "—";
-
-            // --- RENDER HELPERS ---
-            const groupTasksByModule = () => {
-                const groups = {};
-                TASKS_DATA.forEach(task => {
-                    if(!groups[task.module]) groups[task.module] = [];
-                    groups[task.module].push(task);
-                });
-                return groups;
-            };
-
-            const getTaskStatus = (task) => {
-                const now = new Date();
-                const end = new Date(task.end);
-                const start = task.start ? new Date(task.start) : new Date(now.getFullYear(), 0, 1);
-                
-                const isDone = taskStatus[task.title + task.module];
-                if (isDone) return { color: 'text-zinc-600 line-through', label: 'FAIT', dot: 'bg-zinc-800' };
-                if (now > end) return { color: 'text-red-900', label: 'MANQUÉ', dot: 'bg-red-900' };
-                
-                const daysLeft = Math.ceil((end - now) / (1000 * 60 * 60 * 24));
-                if (daysLeft < 0) return { color: 'text-red-500', label: 'RETARD', dot: 'bg-red-500' };
-                if (daysLeft <= 3) return { color: 'text-red-500 animate-pulse', label: `J-${daysLeft} !`, dot: 'bg-red-500' };
-                if (daysLeft <= 7) return { color: 'text-orange-500', label: `J-${daysLeft}`, dot: 'bg-orange-500' };
-                if (now < start) return { color: 'text-zinc-600', label: 'BIENTÔT', dot: 'bg-zinc-800' };
-                return { color: 'text-green-500', label: `${daysLeft} Jours`, dot: 'bg-green-500' };
-            };
-
-            // --- MAIN RENDER ---
-            if (!user && loading) return <div className="h-screen flex items-center justify-center bg-black text-white flex-col gap-4"><span className="loader"></span><span className="font-mono text-xs">INITIALISATION DU TERMINAL...</span></div>;
+            if (!user) return <div className="h-screen bg-black flex items-center justify-center text-white font-mono animate-pulse">BOOTING GEII OS...</div>;
 
             return (
-                <div className="min-h-screen bg-black text-white selection:bg-white selection:text-black font-sans pb-20">
+                <div className="min-h-screen bg-black pb-20 selection:bg-primary selection:text-white font-sans">
                     
-                    {/* NAVBAR */}
-                    <nav className="border-b border-zinc-800 bg-black/80 backdrop-blur sticky top-0 z-50">
-                        <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+                    {selectedModule && (
+                        <GradeEditorModal 
+                            module={selectedModule} 
+                            grades={gradesMap[selectedModule.id]} 
+                            absences={absences[selectedModule.id]}
+                            onClose={() => setSelectedModule(null)}
+                            onSave={handleUpdateGrades}
+                            onAbsenceChange={handleAbsenceUpdate}
+                        />
+                    )}
+
+                    {/* HEADER */}
+                    <header className="sticky top-0 z-40 bg-black/80 backdrop-blur-md border-b border-white/10">
+                        <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
                             <div className="flex items-center gap-3">
-                                <div className={`h-2 w-2 rounded-full ${isOffline ? 'bg-orange-500' : 'bg-green-500'} animate-pulse`}></div>
-                                <div className="leading-none">
-                                    <div className="font-mono font-bold tracking-widest text-sm">GEII.OS <span className="text-zinc-600">v3.0</span></div>
-                                    <div className="text-[10px] text-zinc-500 font-mono">{isOffline ? 'OFFLINE MODE' : 'CLOUD CONNECTED'}</div>
+                                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary to-blue-900 flex items-center justify-center shadow-lg shadow-primary/20">
+                                    <Icon name="zap" size={16} className="text-white"/>
                                 </div>
+                                <span className="font-bold text-lg tracking-tight">GEII<span className="text-subtext">OS</span></span>
                             </div>
-                            <div className="flex gap-1 bg-zinc-900/50 p-1 rounded-lg border border-zinc-800">
-                                {[
-                                    { id: 'TASKS', icon: 'list-todo', label: 'QCM' },
-                                    { id: 'DASHBOARD', icon: 'layout-dashboard', label: 'NOTES' },
-                                    { id: 'CLASS', icon: 'users', label: 'CLASSE' }
-                                ].map(tab => (
-                                    <button 
-                                        key={tab.id}
-                                        onClick={() => setView(tab.id)}
-                                        className={`px-4 py-1.5 text-xs font-mono font-bold rounded flex items-center gap-2 transition-all ${view === tab.id ? 'bg-white text-black' : 'text-zinc-400 hover:text-white'}`}
-                                    >
-                                        <Icon name={tab.icon} size={14} /> <span className="hidden sm:inline">{tab.label}</span>
-                                    </button>
-                                ))}
+                            <div className="flex items-center gap-4">
+                                <div className="text-right hidden sm:block">
+                                    <div className="text-[10px] text-subtext uppercase font-bold">Semestre 2</div>
+                                    <div className="text-sm font-bold text-white">2025-2026</div>
+                                </div>
+                                <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-xs font-bold text-subtext border border-white/10">
+                                    {user.uid.slice(0,2).toUpperCase()}
+                                </div>
                             </div>
                         </div>
-                    </nav>
+                    </header>
 
-                    <main className="max-w-6xl mx-auto p-4 md:p-6 space-y-6">
-                        
-                        {/* VIEW: TASKS (QCM) */}
-                        {view === 'TASKS' && (
-                            <div className="animate-in fade-in duration-500 space-y-6">
-                                <div className="flex justify-between items-end border-b border-zinc-800 pb-4">
-                                    <div>
-                                        <h2 className="text-2xl font-bold">AGENDA QCM</h2>
-                                        <p className="text-zinc-500 text-sm mt-1">Suivi des QCM Énergie, Physique & Maths</p>
-                                    </div>
-                                    <div className="text-right">
-                                        <div className="text-3xl font-mono font-bold">{Object.values(taskStatus).filter(Boolean).length}</div>
-                                        <div className="text-[10px] text-zinc-500 uppercase">QCM Terminés</div>
-                                    </div>
-                                </div>
+                    <main className="max-w-5xl mx-auto p-4 space-y-6">
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                    {Object.entries(groupTasksByModule()).map(([moduleId, tasks]) => {
-                                        const moduleInfo = MODULES_CONFIG_S2.find(m => m.id === moduleId);
-                                        const activeTasks = tasks.sort((a,b) => new Date(a.end) - new Date(b.end));
-                                        
-                                        return (
-                                            <div key={moduleId} className="pro-card flex flex-col h-full">
-                                                <div className="p-4 border-b border-zinc-800 bg-zinc-900/50 flex justify-between items-center">
-                                                    <div>
-                                                        <h3 className="text-xl font-bold">{moduleInfo?.short}</h3>
-                                                        <span className="text-[10px] font-mono text-zinc-500 bg-zinc-900 px-1 py-0.5 rounded border border-zinc-800">{moduleId}</span>
-                                                    </div>
-                                                    <span className="text-xs text-zinc-500">{moduleInfo?.label}</span>
-                                                </div>
-                                                <div className="flex-1 overflow-y-auto max-h-[400px] p-2 space-y-1">
-                                                    {activeTasks.map((task, idx) => {
-                                                        const status = getTaskStatus(task);
-                                                        const uniqueId = task.title + task.module;
-                                                        return (
-                                                            <div key={idx} 
-                                                                 onClick={() => toggleTask(uniqueId)}
-                                                                 className={`p-3 rounded border border-transparent hover:border-zinc-700 cursor-pointer transition-all group flex items-center justify-between ${taskStatus[uniqueId] ? 'opacity-50' : 'bg-black'}`}
-                                                            >
-                                                                <div className="flex items-center gap-3">
-                                                                    <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${taskStatus[uniqueId] ? 'bg-white border-white' : 'border-zinc-600 group-hover:border-white'}`}>
-                                                                        {taskStatus[uniqueId] && <Icon name="check" size={10} className="text-black" />}
-                                                                    </div>
-                                                                    <div>
-                                                                        <div className={`text-sm font-mono font-bold ${taskStatus[uniqueId] ? 'line-through text-zinc-600' : 'text-zinc-200'}`}>
-                                                                            {task.title}
-                                                                        </div>
-                                                                        <div className="text-[10px] text-zinc-500">
-                                                                            Fin: {new Date(task.end).toLocaleDateString('fr-FR')}
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                                <div className={`text-[10px] font-bold px-2 py-1 rounded bg-zinc-900 border border-zinc-800 ${status.color}`}>
-                                                                    {status.label}
-                                                                </div>
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* VIEW: DASHBOARD (NOTES) */}
-                        {view === 'DASHBOARD' && (
-                            <div className="animate-in fade-in duration-500">
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                                    <StatCard title="MOYENNE S2" value={avgS2} subtext="ESTIMATION TEMPS RÉEL" highlight />
-                                    <StatCard title="UE21" value={avg21} subtext="CONCEVOIR" />
-                                    <StatCard title="UE22" value={avg22} subtext="VÉRIFIER" />
-                                    <StatCard title="ANNÉE BUT" value={avgAnnual} subtext="OBJECTIF > 10" />
-                                </div>
-
-                                <div className="pro-card overflow-hidden">
-                                    <div className="overflow-x-auto">
-                                        <table className="w-full text-left border-collapse">
-                                            <thead>
-                                                <tr className="border-b border-zinc-800 bg-zinc-900/50 text-[10px] text-zinc-500 font-mono uppercase tracking-wider">
-                                                    <th className="py-3 px-4">Module</th>
-                                                    <th className="py-3 px-4 text-center">Cat.</th>
-                                                    <th className="py-3 px-4 text-center">UE21</th>
-                                                    <th className="py-3 px-4 text-center">UE22</th>
-                                                    <th className="py-3 px-4 text-right">Note</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="text-sm font-mono divide-y divide-zinc-800">
-                                                {MODULES_CONFIG_S2.map((m) => (
-                                                    <tr key={m.id} className="hover:bg-zinc-900/30 transition-colors group">
-                                                        <td className="py-3 px-4">
-                                                            <div className="flex items-center gap-3">
-                                                                <div className="w-10 h-10 rounded bg-zinc-900 border border-zinc-800 flex items-center justify-center text-xs font-bold text-zinc-400 group-hover:text-white group-hover:border-zinc-600 transition-colors">
-                                                                    {m.short.substring(0,3)}
-                                                                </div>
-                                                                <div>
-                                                                    <div className="font-bold text-white text-base">{m.short}</div>
-                                                                    <div className="text-[10px] text-zinc-500 font-sans uppercase tracking-wider">{m.id} - {m.label}</div>
-                                                                </div>
-                                                            </div>
-                                                        </td>
-                                                        <td className="py-3 px-4 text-center">
-                                                            <span className="px-2 py-0.5 rounded border border-zinc-800 text-[10px] text-zinc-400 bg-black">{m.category}</span>
-                                                        </td>
-                                                        <td className="py-3 px-4 text-center text-zinc-600">{m.coef21 > 0 ? `x${m.coef21}` : '—'}</td>
-                                                        <td className="py-3 px-4 text-center text-zinc-600">{m.coef22 > 0 ? `x${m.coef22}` : '—'}</td>
-                                                        <td className="py-3 px-4 text-right">
-                                                            <div className="relative inline-block">
-                                                                <input 
-                                                                    type="number" 
-                                                                    className="bg-transparent border-b border-zinc-800 w-20 text-right focus:outline-none focus:border-white focus:text-white transition-all text-zinc-300 font-bold text-lg py-1 placeholder-zinc-800"
-                                                                    placeholder="00"
-                                                                    value={gradesS2[m.id] || ''}
-                                                                    onChange={(e) => handleGradeChange(m.id, e.target.value)}
-                                                                />
-                                                                <span className="absolute right-0 -bottom-3 text-[9px] text-zinc-700 pointer-events-none">/20</span>
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
+                        {/* HERO SECTION - BENTO GRID */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 h-auto md:h-48">
+                            
+                            {/* MAIN STAT */}
+                            <div className="col-span-2 md:col-span-2 glass p-6 rounded-3xl flex flex-col justify-between relative overflow-hidden group">
+                                <div className="absolute -right-10 -top-10 w-40 h-40 bg-primary/20 blur-3xl rounded-full group-hover:bg-primary/30 transition-all duration-500"></div>
+                                
+                                <div>
+                                    <h2 className="text-sm font-bold text-subtext uppercase tracking-wider mb-1">Moyenne Générale</h2>
+                                    <div className="text-5xl font-mono font-bold tracking-tighter text-white">
+                                        {globalAvgS2}<span className="text-xl text-subtext opacity-50">/20</span>
                                     </div>
                                 </div>
                                 
-                                <div className="mt-8 pro-card p-6">
-                                    <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><Icon name="archive" /> IMPORT MANUEL S1</h3>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="bg-black p-3 rounded border border-zinc-800">
-                                            <label className="text-[10px] text-zinc-500 uppercase block mb-1">Moyenne UE11</label>
-                                            <input type="number" value={gradesS1.ue11} onChange={(e) => {
-                                                const v = { ...gradesS1, ue11: e.target.value };
-                                                setGradesS1(v); saveData(undefined, v, undefined, undefined);
-                                            }} className="bg-transparent text-xl font-bold w-full outline-none font-mono" placeholder="—" />
-                                        </div>
-                                        <div className="bg-black p-3 rounded border border-zinc-800">
-                                            <label className="text-[10px] text-zinc-500 uppercase block mb-1">Moyenne UE12</label>
-                                            <input type="number" value={gradesS1.ue12} onChange={(e) => {
-                                                const v = { ...gradesS1, ue12: e.target.value };
-                                                setGradesS1(v); saveData(undefined, v, undefined, undefined);
-                                            }} className="bg-transparent text-xl font-bold w-full outline-none font-mono" placeholder="—" />
-                                        </div>
+                                <div className="flex gap-4 mt-4">
+                                    <div className="bg-white/5 px-3 py-1.5 rounded-lg border border-white/5">
+                                        <div className="text-[10px] text-subtext">UE21</div>
+                                        <div className="font-bold text-sm">--.--</div>
+                                    </div>
+                                    <div className="bg-white/5 px-3 py-1.5 rounded-lg border border-white/5">
+                                        <div className="text-[10px] text-subtext">UE22</div>
+                                        <div className="font-bold text-sm">--.--</div>
                                     </div>
                                 </div>
                             </div>
-                        )}
 
-                        {/* VIEW: CLASS */}
-                        {view === 'CLASS' && (
-                            <div className="animate-in fade-in duration-500">
-                                {isOffline ? (
-                                    <div className="text-center py-20">
-                                        <Icon name="wifi-off" size={48} className="mx-auto text-zinc-700 mb-4" />
-                                        <h3 className="text-xl font-bold text-zinc-400">MODE HORS LIGNE</h3>
-                                        <p className="text-zinc-600 mt-2">Le partage de classe nécessite une connexion Firebase configurée.</p>
-                                    </div>
-                                ) : (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div className="pro-card p-6">
-                                            <h3 className="font-bold mb-4">MON PROFIL</h3>
-                                            <div className="bg-zinc-900 p-4 rounded border border-zinc-800 mb-6 font-mono text-sm select-all">
-                                                {user?.uid}
-                                            </div>
-                                            <button onClick={() => {
-                                                const s = !isPublished; setIsPublished(s); saveData(undefined, undefined, undefined, s);
-                                            }} className={`w-full py-3 font-mono font-bold border ${isPublished ? 'bg-white text-black' : 'border-zinc-800 text-zinc-500'}`}>
-                                                {isPublished ? 'PUBLIC' : 'PRIVÉ'}
-                                            </button>
-                                        </div>
-                                        <div className="pro-card p-6">
-                                            <h3 className="font-bold mb-4">COMPARER</h3>
-                                            <div className="flex gap-2">
-                                                <input className="bg-black border border-zinc-800 flex-1 p-2 outline-none font-mono" placeholder="ID Camarade" value={friendId} onChange={e => setFriendId(e.target.value)} />
-                                                <button className="px-4 bg-white text-black font-bold" onClick={async () => {
-                                                    if(!dbRef.current) return;
-                                                    const { doc, getDoc } = window.firebaseModules;
-                                                    try {
-                                                        const s = await getDoc(doc(dbRef.current, 'artifacts', appIdRef.current, 'public', 'data', 'profiles', friendId));
-                                                        if(s.exists()) setFriendData(s.data());
-                                                        else alert("Introuvable");
-                                                    } catch(e) { alert("Erreur"); }
-                                                }}>OK</button>
-                                            </div>
-                                            {friendData && (
-                                                <div className="mt-4 p-4 bg-zinc-900 border border-zinc-800 font-mono">
-                                                    UE21: {friendData.avg21} / UE22: {friendData.avg22}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                )}
+                            {/* WIDGETS */}
+                            <div className="col-span-1 widget-hover cursor-pointer">
+                                <TimetableWidget />
                             </div>
-                        )}
+                            <div className="col-span-1 widget-hover cursor-pointer">
+                                <PomodoroWidget />
+                            </div>
+                        </div>
+
+                        {/* QUICK ACTIONS ROW */}
+                        <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
+                            {[
+                                { name: 'Moodle', url: 'https://moodle.univ-lyon1.fr/', color: 'bg-orange-500' },
+                                { name: 'ADE Planning', url: '#', color: 'bg-indigo-500' },
+                                { name: 'Mail', url: '#', color: 'bg-sky-500' },
+                                { name: 'GitHub', url: '#', color: 'bg-gray-700' }
+                            ].map((link, i) => (
+                                <a key={i} href={link.url} target="_blank" className="flex items-center gap-2 pl-2 pr-4 py-2 bg-[#1c1c1e] border border-white/5 rounded-full whitespace-nowrap hover:bg-[#2c2c2e] transition-colors">
+                                    <div className={`w-6 h-6 rounded-full ${link.color} flex items-center justify-center text-[10px] font-bold`}>{link.name[0]}</div>
+                                    <span className="text-xs font-bold">{link.name}</span>
+                                </a>
+                            ))}
+                        </div>
+
+                        {/* PORTFOLIO LIST (GRADES) */}
+                        <div>
+                            <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                                <Icon name="folder-open" size={20} className="text-subtext"/>
+                                Portfolio S2
+                            </h3>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                {MODULES_CONFIG.map(module => {
+                                    const avg = calculateSubjectAverage(gradesMap[module.id]);
+                                    const absCount = absences[module.id] || 0;
+                                    const noteCount = gradesMap[module.id]?.length || 0;
+
+                                    return (
+                                        <div 
+                                            key={module.id} 
+                                            onClick={() => handleModuleClick(module)}
+                                            className="bg-[#1c1c1e] hover:bg-[#2c2c2e] border border-white/5 p-4 rounded-2xl cursor-pointer transition-all hover:scale-[1.01] hover:shadow-xl group"
+                                        >
+                                            <div className="flex justify-between items-start mb-4">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-xs font-bold text-subtext group-hover:text-white group-hover:bg-primary/20 transition-colors">
+                                                        {module.short.substring(0,2)}
+                                                    </div>
+                                                    <div>
+                                                        <div className="font-bold text-sm text-white leading-tight">{module.short}</div>
+                                                        <div className="text-[10px] text-subtext">{module.category}</div>
+                                                    </div>
+                                                </div>
+                                                <div className={`font-mono font-bold text-xl ${getGradeColor(avg)}`}>
+                                                    {avg || <span className="text-subtext opacity-30">—</span>}
+                                                </div>
+                                            </div>
+
+                                            {/* Mini Stats Footer */}
+                                            <div className="flex justify-between items-center pt-3 border-t border-white/5">
+                                                <div className="flex gap-2 text-[10px] text-subtext font-mono">
+                                                    <span>{noteCount} note{noteCount > 1 ? 's' : ''}</span>
+                                                    {absCount > 0 && <span className="text-danger flex items-center gap-1"> • {absCount} abs</span>}
+                                                </div>
+                                                <div className="w-6 h-6 rounded-full border border-white/10 flex items-center justify-center group-hover:bg-primary group-hover:border-primary transition-colors">
+                                                    <Icon name="arrow-right" size={12} className="text-subtext group-hover:text-white"/>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
 
                     </main>
                 </div>
