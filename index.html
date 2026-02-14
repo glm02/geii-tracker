@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My GEII Tracker - Rafael Guilland-Mille</title>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    
+    <!-- Babel pour le JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Configuration Tailwind -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        geii: {
+                            dark: '#0f172a',
+                            card: '#1e293b',
+                            accent: '#3b82f6',
+                            success: '#10b981',
+                            warning: '#f59e0b',
+                            danger: '#ef4444'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        body { background-color: #0f172a; color: #e2e8f0; font-family: 'Inter', sans-serif; }
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        /* Masquer les flèches des input number */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { 
+            -webkit-appearance: none; 
+            margin: 0; 
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+        
+        // --- DONNÉES ET CONFIGURATION ---
+        
+        // Configuration des Modules et Coefficients
+        // Structure: ID unique, Label, Coef UE21, Coef UE22
+        const MODULES_CONFIG = [
+            { id: 'R2.01', label: 'R2.01 - Analyse (AN2)', coef21: 1.1, coef22: 0, category: 'Fondamentaux' },
+            { id: 'R2.02', label: 'R2.02 - Culture Com (CC2)', coef21: 1.1, coef22: 0, category: 'Transverse' },
+            { id: 'R2.03', label: 'R2.03 - Vie Entr. (VE2)', coef21: 0.8, coef22: 0, category: 'Transverse' },
+            { id: 'R2.04', label: 'R2.04 - Outils Maths (OML2)', coef21: 2.6, coef22: 0, category: 'Fondamentaux' },
+            { id: 'R2.05', label: 'R2.05 - PPP (PPP2)', coef21: 0.8, coef22: 0.2, category: 'Transverse' },
+            { id: 'R2.06', label: 'R2.06 - Automatisme (AUTO2)', coef21: 0, coef22: 2.6, category: 'Technique' },
+            { id: 'R2.07', label: 'R2.07 - Info Indus (INFO2)', coef21: 0, coef22: 2.6, category: 'Technique' },
+            { id: 'R2.08', label: 'R2.08 - Élec/Énergie (ELEN2)', coef21: 1.3, coef22: 1.3, category: 'Technique' },
+            { id: 'R2.09', label: 'R2.09 - Énergie (ENER2)', coef21: 1.3, coef22: 1.3, category: 'Technique' },
+            { id: 'R2.10', label: 'R2.10 - Physique App (PApp2)', coef21: 0, coef22: 1.0, category: 'Fondamentaux' },
+            { id: 'S2.1', label: 'SAÉ 2.1 - CAPA', coef21: 2.5, coef22: 2.5, category: 'SAÉ' },
+            { id: 'S2.2', label: 'SAÉ 2.2 - Robot', coef21: 2.5, coef22: 2.5, category: 'SAÉ' },
+            { id: 'PF2', label: 'Portfolio S2', coef21: 1.0, coef22: 1.0, category: 'SAÉ' },
+        ];
+
+        // Tâches initiales extraites du texte
+        const INITIAL_TASKS = [
+            { id: 1, title: 'QCM_TD1', deadline: '2026-02-13', type: 'QCM', done: false },
+            { id: 2, title: 'QCM_TD2', deadline: '2026-03-04', type: 'QCM', done: false },
+            { id: 3, title: 'QCM3 - Devoir (PDF/Image)', deadline: '2026-02-27', type: 'DEVOIR', done: false },
+            { id: 4, title: 'QCM4', deadline: '2026-03-06', type: 'QCM', done: false },
+            { id: 5, title: 'QCM5', deadline: '2026-03-13', type: 'QCM', done: false },
+            { id: 6, title: 'QCM6', deadline: '2026-03-20', type: 'QCM', done: false },
+            { id: 7, title: 'QCM_TD6', deadline: '2026-03-27', type: 'QCM', done: false },
+            { id: 8, title: 'QCM_TD8', deadline: '2026-04-24', type: 'QCM', done: false },
+            { id: 9, title: 'QCM_TD9', deadline: '2026-04-30', type: 'QCM', done: false },
+            { id: 10, title: 'QCM_TD11', deadline: '2026-05-08', type: 'QCM', done: false },
+            { id: 11, title: 'QCM_TD12', deadline: '2026-05-21', type: 'QCM', done: false },
+        ];
+
+        // --- COMPOSANTS UI ---
+
+        const Icon = ({ name, size = 20, className = "" }) => {
+            React.useEffect(() => {
+                lucide.createIcons();
+            }, [name]);
+            return <i data-lucide={name} width={size} height={size} className={className}></i>;
+        };
+
+        const ProgressBar = ({ value, max = 20, label, colorClass }) => {
+            const percentage = Math.min((value / max) * 100, 100);
+            return (
+                <div className="mb-4">
+                    <div className="flex justify-between mb-1">
+                        <span className="text-sm font-medium text-gray-300">{label}</span>
+                        <span className={`text-sm font-bold ${colorClass}`}>{value} / 20</span>
+                    </div>
+                    <div className="w-full bg-gray-700 rounded-full h-2.5">
+                        <div className={`h-2.5 rounded-full transition-all duration-500 ${colorClass.replace('text-', 'bg-')}`} style={{ width: `${percentage}%` }}></div>
+                    </div>
+                </div>
+            );
+        };
+
+        const TaskItem = ({ task, onToggle }) => {
+            const today = new Date();
+            const deadline = new Date(task.deadline);
+            const diffTime = deadline - today;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            
+            let statusColor = "text-gray-400";
+            let statusText = `${diffDays} jours restants`;
+            let urgencyClass = "border-gray-700";
+
+            if (task.done) {
+                statusText = "Terminé";
+                statusColor = "text-green-500";
+                urgencyClass = "border-green-900 bg-green-900/10 opacity-50";
+            } else if (diffDays < 0) {
+                statusText = "En retard";
+                statusColor = "text-red-500";
+                urgencyClass = "border-red-900 bg-red-900/10";
+            } else if (diffDays <= 3) {
+                statusText = "URGENT !";
+                statusColor = "text-red-400 font-bold animate-pulse";
+                urgencyClass = "border-red-500 bg-red-500/10";
+            } else if (diffDays <= 7) {
+                statusText = "Bientôt";
+                statusColor = "text-orange-400";
+                urgencyClass = "border-orange-500/50";
+            }
+
+            return (
+                <div className={`flex items-center justify-between p-3 mb-2 rounded-lg border glass-panel transition-all ${urgencyClass}`}>
+                    <div className="flex items-center gap-3">
+                        <button 
+                            onClick={() => onToggle(task.id)}
+                            className={`w-6 h-6 rounded border flex items-center justify-center transition-colors ${task.done ? 'bg-green-500 border-green-500' : 'border-gray-500 hover:border-blue-400'}`}
+                        >
+                            {task.done && <Icon name="check" size={14} className="text-white" />}
+                        </button>
+                        <div>
+                            <p className={`font-medium ${task.done ? 'line-through text-gray-500' : 'text-gray-200'}`}>{task.title}</p>
+                            <p className="text-xs text-gray-500 flex items-center gap-1">
+                                <Icon name="calendar" size={10} /> {new Date(task.deadline).toLocaleDateString('fr-FR')}
+                                <span className="mx-1">•</span>
+                                <span className={task.type === 'DEVOIR' ? 'text-purple-400' : 'text-blue-400'}>{task.type}</span>
+                            </p>
+                        </div>
+                    </div>
+                    <div className={`text-xs text-right font-mono ${statusColor}`}>
+                        {statusText}
+                    </div>
+                </div>
+            );
+        };
+
+        // --- COMPOSANT PRINCIPAL ---
+
+        const App = () => {
+            // -- State --
+            const [grades, setGrades] = useState({});
+            const [tasks, setTasks] = useState(INITIAL_TASKS);
+            const [showConfetti, setShowConfetti] = useState(false);
+
+            // -- Chargement/Sauvegarde --
+            useEffect(() => {
+                const savedGrades = localStorage.getItem('geii_grades');
+                const savedTasks = localStorage.getItem('geii_tasks');
+                if (savedGrades) setGrades(JSON.parse(savedGrades));
+                if (savedTasks) setTasks(JSON.parse(savedTasks));
+                
+                // Refresh icons
+                lucide.createIcons();
+            }, []);
+
+            useEffect(() => {
+                localStorage.setItem('geii_grades', JSON.stringify(grades));
+            }, [grades]);
+
+            useEffect(() => {
+                localStorage.setItem('geii_tasks', JSON.stringify(tasks));
+            }, [tasks]);
+
+            // -- Handlers --
+            const handleGradeChange = (id, value) => {
+                let val = parseFloat(value);
+                if (val < 0) val = 0;
+                if (val > 20) val = 20;
+                setGrades(prev => ({ ...prev, [id]: val }));
+            };
+
+            const toggleTask = (id) => {
+                setTasks(prev => prev.map(t => t.id === id ? { ...t, done: !t.done } : t));
+            };
+
+            const resetData = () => {
+                if(confirm("Attention: Cela va effacer toutes vos notes simulées. Continuer ?")) {
+                    setGrades({});
+                    localStorage.removeItem('geii_grades');
+                }
+            };
+
+            // -- Calculs --
+            const calculateAverage = (ueType) => {
+                let totalPoints = 0;
+                let totalCoef = 0;
+                
+                MODULES_CONFIG.forEach(module => {
+                    const coef = ueType === 'UE21' ? module.coef21 : module.coef22;
+                    if (coef > 0) {
+                        const grade = grades[module.id] !== undefined && !isNaN(grades[module.id]) ? grades[module.id] : null;
+                        
+                        // On ne compte que les notes remplies pour une moyenne "courante", 
+                        // ou on peut considérer 0 si on veut être strict. Ici: on fait une moyenne sur ce qui est noté.
+                        // Pour simuler, l'utilisateur mettra ses estimations.
+                        if (grade !== null) {
+                            totalPoints += grade * coef;
+                            totalCoef += coef;
+                        }
+                    }
+                });
+
+                return totalCoef === 0 ? "—" : (totalPoints / totalCoef).toFixed(2);
+            };
+
+            const avg21 = calculateAverage('UE21');
+            const avg22 = calculateAverage('UE22');
+
+            const getScoreColor = (score) => {
+                if (score === "—") return "text-gray-500";
+                const val = parseFloat(score);
+                if (val < 10) return "text-red-500";
+                if (val < 12) return "text-yellow-500";
+                return "text-green-500";
+            };
+
+            return (
+                <div className="min-h-screen pb-12">
+                    {/* Header */}
+                    <header className="bg-gradient-to-r from-blue-900 to-slate-900 border-b border-gray-800 p-6 shadow-lg">
+                        <div className="max-w-5xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+                            <div>
+                                <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+                                    <Icon name="cpu" className="text-blue-400" />
+                                    My GEII Tracker
+                                </h1>
+                                <p className="text-blue-200 mt-1">Rafael GUILLAND-MILLE | BUT GEII - S2 2025/2026</p>
+                            </div>
+                            <div className="bg-slate-800/50 px-4 py-2 rounded-lg border border-slate-700 text-sm font-mono text-gray-300">
+                                INE: 12506736
+                            </div>
+                        </div>
+                    </header>
+
+                    <main className="max-w-5xl mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        
+                        {/* COLONNE GAUCHE : DASHBOARD & TACHES */}
+                        <div className="lg:col-span-1 space-y-6">
+                            
+                            {/* Dashboard Cards */}
+                            <div className="glass-panel p-6 rounded-xl shadow-xl relative overflow-hidden group">
+                                <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
+                                    <Icon name="target" size={80} />
+                                </div>
+                                <h2 className="text-lg font-semibold mb-4 text-gray-200 border-b border-gray-700 pb-2">Synthèse S2</h2>
+                                
+                                <div className="space-y-6">
+                                    <div className="text-center p-4 bg-slate-800/50 rounded-lg border border-slate-700">
+                                        <p className="text-sm text-gray-400 mb-1">Moyenne UE21 (Concevoir)</p>
+                                        <div className={`text-4xl font-bold ${getScoreColor(avg21)}`}>{avg21}</div>
+                                        <p className="text-xs text-gray-500 mt-1">Coef. cumulés</p>
+                                    </div>
+                                    
+                                    <div className="text-center p-4 bg-slate-800/50 rounded-lg border border-slate-700">
+                                        <p className="text-sm text-gray-400 mb-1">Moyenne UE22 (Vérifier)</p>
+                                        <div className={`text-4xl font-bold ${getScoreColor(avg22)}`}>{avg22}</div>
+                                        <p className="text-xs text-gray-500 mt-1">Coef. cumulés</p>
+                                    </div>
+                                </div>
+                                
+                                <div className="mt-4 pt-4 border-t border-gray-700 text-xs text-center text-gray-500">
+                                    Objectif passage : > 10/20 partout
+                                </div>
+                            </div>
+
+                            {/* Task Manager */}
+                            <div className="glass-panel p-6 rounded-xl shadow-xl">
+                                <div className="flex justify-between items-center mb-4 pb-2 border-b border-gray-700">
+                                    <h2 className="text-lg font-semibold text-gray-200 flex items-center gap-2">
+                                        <Icon name="bell-ring" className="text-yellow-500" size={18}/> 
+                                        Rappels / To-Do
+                                    </h2>
+                                    <span className="bg-blue-600 text-xs px-2 py-1 rounded-full text-white">
+                                        {tasks.filter(t => !t.done).length}
+                                    </span>
+                                </div>
+                                <div className="max-h-[400px] overflow-y-auto pr-1 custom-scrollbar">
+                                    {tasks.sort((a,b) => new Date(a.deadline) - new Date(b.deadline)).map(task => (
+                                        <TaskItem key={task.id} task={task} onToggle={toggleTask} />
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* COLONNE DROITE : CALCULATEUR */}
+                        <div className="lg:col-span-2">
+                            <div className="glass-panel p-6 rounded-xl shadow-xl">
+                                <div className="flex justify-between items-center mb-6">
+                                    <div>
+                                        <h2 className="text-xl font-semibold text-white flex items-center gap-2">
+                                            <Icon name="calculator" className="text-green-400" />
+                                            Simulateur de Notes
+                                        </h2>
+                                        <p className="text-sm text-gray-400">Entrez vos notes (même provisoires). Les moyennes se recalculent instantanément.</p>
+                                    </div>
+                                    <button onClick={resetData} className="text-xs text-red-400 hover:text-red-300 underline">
+                                        Réinitialiser
+                                    </button>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {MODULES_CONFIG.map(module => (
+                                        <div key={module.id} className="bg-slate-800/40 p-3 rounded-lg border border-slate-700/50 hover:border-slate-600 transition-colors">
+                                            <div className="flex justify-between items-start mb-2">
+                                                <div>
+                                                    <span className="font-medium text-gray-200 block">{module.id}</span>
+                                                    <span className="text-xs text-gray-400 block truncate max-w-[150px]" title={module.label}>{module.label.split('-')[1] || module.label}</span>
+                                                </div>
+                                                <div className="flex flex-col items-end gap-1">
+                                                    {module.coef21 > 0 && <span className="text-[10px] bg-blue-900/50 text-blue-300 px-1.5 rounded border border-blue-900">UE21: x{module.coef21}</span>}
+                                                    {module.coef22 > 0 && <span className="text-[10px] bg-purple-900/50 text-purple-300 px-1.5 rounded border border-purple-900">UE22: x{module.coef22}</span>}
+                                                </div>
+                                            </div>
+                                            
+                                            <div className="flex items-center gap-2">
+                                                <input 
+                                                    type="number" 
+                                                    min="0" 
+                                                    max="20" 
+                                                    step="0.1"
+                                                    placeholder="-"
+                                                    className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-center text-white focus:outline-none focus:border-blue-500 transition-colors placeholder-gray-600 font-bold"
+                                                    value={grades[module.id] || ''}
+                                                    onChange={(e) => handleGradeChange(module.id, e.target.value)}
+                                                />
+                                                <span className="text-gray-500 font-mono text-sm">/20</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Legend / Info Footer */}
+                            <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-gray-500">
+                                <div className="glass-panel p-3 rounded flex items-center gap-2">
+                                    <div className="w-3 h-3 bg-blue-900/50 border border-blue-900 rounded"></div>
+                                    <span>UE21: Concevoir</span>
+                                </div>
+                                <div className="glass-panel p-3 rounded flex items-center gap-2">
+                                    <div className="w-3 h-3 bg-purple-900/50 border border-purple-900 rounded"></div>
+                                    <span>UE22: Vérifier</span>
+                                </div>
+                                <div className="glass-panel p-3 rounded flex items-center gap-2">
+                                    <div className="w-3 h-3 bg-gradient-to-r from-blue-900 to-purple-900 rounded"></div>
+                                    <span>Modules Communs</span>
+                                </div>
+                            </div>
+                        </div>
+
+                    </main>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
