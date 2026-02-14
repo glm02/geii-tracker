@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GEII OS v4.1 - Fintech Edition</title>
+    <title>GEII OS v4.2 - Fintech Edition</title>
     
     <!-- React & Dependencies -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
@@ -82,8 +82,18 @@
         const { useState, useEffect, useRef, useMemo } = React;
 
         // --- DATA & CONFIG ---
+        // URL iCal pour le widget (données machine)
         const ICAL_URL = "https://edt.univ-lyon1.fr/jsp/custom/modules/plannings/anonymous_cal.jsp?resources=13655&projectId=1&calType=ical&firstDate=2025-08-18&lastDate=2026-08-01";
         
+        // URLs Utilisateur (Boutons)
+        const LINKS = {
+            ADE: "https://edt.univ-lyon1.fr/direct/index.jsp?projectId=1&ShowPianoWeeks=true&resources=13655&displayConfName=_DirectPlanning_IUT-GEII&days=0,1,2,3,4&weeks=&from=edt",
+            MAIL: "https://mail.univ-lyon1.fr/owa/auth/logon.aspx?url=https%3a%2f%2fmail.univ-lyon1.fr%2fowa%2f&reason=0",
+            DOCS: "https://wwwgeii.univ-lyon1.fr/depot_certif/view_user_docs.php",
+            MOODLE: "https://moodle.univ-lyon1.fr/",
+            MIRE: "https://wwwgeii.univ-lyon1.fr/mire_geii.php"
+        };
+
         const MODULES_CONFIG = [
             { id: 'R2.01', short: 'AN2', label: 'Analyse', coef21: 1.1, coef22: 0, category: 'Fonda' },
             { id: 'R2.02', short: 'CC2', label: 'Culture Com', coef21: 1.1, coef22: 0, category: 'Trans' },
@@ -127,7 +137,7 @@
             return "text-success";
         };
 
-        // --- PARSER ICAL ROBUSTE ---
+        // --- PARSER ICAL ---
         const parseICS = (icsData) => {
             const events = [];
             const lines = icsData.split(/\r\n|\n|\r/);
@@ -136,52 +146,28 @@
 
             const parseDate = (dateStr) => {
                 if (!dateStr) return null;
-                // Nettoyage basique
                 dateStr = dateStr.trim();
-                // Format YYYYMMDDTHHMMSS
                 const year = parseInt(dateStr.substring(0, 4));
                 const month = parseInt(dateStr.substring(4, 6)) - 1;
                 const day = parseInt(dateStr.substring(6, 8));
                 let hour = 0;
                 let minute = 0;
-
                 if (dateStr.includes('T')) {
                     const timePart = dateStr.split('T')[1];
                     hour = parseInt(timePart.substring(0, 2));
                     minute = parseInt(timePart.substring(2, 4));
-                    
-                    // Gestion basique UTC vs Local (approximation pour l'affichage)
-                    // Si 'Z' à la fin, c'est UTC, on ajoute +1h ou +2h pour la France
-                    // Ici on suppose que l'EDT est déjà en heure locale ou on ignore le Z pour simplifier la démo
-                    // dans un contexte sans librairie de date complexe.
                 }
-
                 return new Date(year, month, day, hour, minute);
             };
 
             for (let line of lines) {
-                if (line.startsWith('BEGIN:VEVENT')) {
-                    inEvent = true;
-                    event = {};
-                } else if (line.startsWith('END:VEVENT')) {
-                    inEvent = false;
-                    if (event.start && event.summary) events.push(event);
-                } else if (inEvent) {
-                    // Gestion des paramètres comme DTSTART;TZID=...
-                    if (line.startsWith('DTSTART')) {
-                        const parts = line.split(':');
-                        if(parts.length > 1) event.start = parseDate(parts[1]);
-                    }
-                    else if (line.startsWith('DTEND')) {
-                        const parts = line.split(':');
-                        if(parts.length > 1) event.end = parseDate(parts[1]);
-                    }
-                    else if (line.startsWith('SUMMARY')) {
-                        event.summary = line.split(':')[1]?.replace(/\\,/g, ',') || 'Cours';
-                    }
-                    else if (line.startsWith('LOCATION')) {
-                        event.location = line.split(':')[1]?.replace(/\\,/g, ',') || '';
-                    }
+                if (line.startsWith('BEGIN:VEVENT')) { inEvent = true; event = {}; } 
+                else if (line.startsWith('END:VEVENT')) { inEvent = false; if (event.start && event.summary) events.push(event); } 
+                else if (inEvent) {
+                    if (line.startsWith('DTSTART')) { const parts = line.split(':'); if(parts.length > 1) event.start = parseDate(parts[1]); }
+                    else if (line.startsWith('DTEND')) { const parts = line.split(':'); if(parts.length > 1) event.end = parseDate(parts[1]); }
+                    else if (line.startsWith('SUMMARY')) { event.summary = line.split(':')[1]?.replace(/\\,/g, ',') || 'Cours'; }
+                    else if (line.startsWith('LOCATION')) { event.location = line.split(':')[1]?.replace(/\\,/g, ',') || ''; }
                 }
             }
             return events;
@@ -189,7 +175,7 @@
 
         // --- COMPONENTS ---
 
-        const GradeEditorModal = ({ module, grades, onClose, onSave, absences, onAbsenceChange }) => {
+        const GradeEditorModal = ({ module, grades, onClose, onSave }) => {
             const [localGrades, setLocalGrades] = useState(grades || []);
             const [newNote, setNewNote] = useState('');
             const [newCoef, setNewCoef] = useState('1');
@@ -277,16 +263,6 @@
                                     <button onClick={handleAdd} className="bg-primary hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors">Ajouter</button>
                                 </div>
                             </div>
-                            <div className="flex justify-between items-center bg-black/40 p-3 rounded-xl border border-white/5">
-                                <div className="flex items-center gap-2 text-sm text-subtext">
-                                    <Icon name="clock" size={16} /> Absences injustifiées
-                                </div>
-                                <div className="flex items-center gap-3">
-                                    <button onClick={() => onAbsenceChange((absences || 0) - 1)} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20">-</button>
-                                    <span className="font-mono font-bold w-4 text-center">{absences || 0}</span>
-                                    <button onClick={() => onAbsenceChange((absences || 0) + 1)} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20">+</button>
-                                </div>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -327,23 +303,19 @@
         const TimetableWidget = () => {
             const [events, setEvents] = useState([]);
             const [loading, setLoading] = useState(true);
-            const [error, setError] = useState(null);
-            const [displayMode, setDisplayMode] = useState('TODAY'); // 'TODAY' or 'UPCOMING'
+            const [displayMode, setDisplayMode] = useState('TODAY');
 
             useEffect(() => {
                 const fetchSchedule = async () => {
                     try {
-                        // Utilisation de corsproxy.io qui est plus fiable que allorigins pour les iCal
                         const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(ICAL_URL);
-                        
                         let text = "";
                         try {
                             const response = await fetch(proxyUrl);
-                            if (!response.ok) throw new Error('Erreur réseau Proxy 1');
+                            if (!response.ok) throw new Error('Erreur réseau');
                             text = await response.text();
                         } catch(e) {
-                            console.log("Proxy 1 échec, essai fallback data pour la démo...");
-                            throw new Error("Mode Démo activé");
+                            throw new Error("Mode Démo");
                         }
 
                         let parsedEvents = parseICS(text);
@@ -351,94 +323,65 @@
                         setLoading(false);
 
                     } catch (err) {
-                        console.error("Mode Démo activé suite à erreur:", err);
-                        // FALLBACK DATA POUR LA DEMO SI LE FETCH ECHOUE (RESTRICTIONS GEMINI)
                         const demoEvents = generateDemoEvents();
                         processEvents(demoEvents);
                         setLoading(false);
-                        // On ne set pas d'erreur fatale pour afficher les données de démo
                     }
                 };
-
                 fetchSchedule();
             }, []);
 
             const generateDemoEvents = () => {
-                // Génère des cours fictifs pour "Aujourd'hui" si le fetch échoue
                 const today = new Date();
                 const y = today.getFullYear();
                 const m = today.getMonth();
                 const d = today.getDate();
-                
                 return [
                     { start: new Date(y, m, d, 8, 0), end: new Date(y, m, d, 10, 0), summary: 'R2.06 Automatisme', location: 'Salle TP3' },
                     { start: new Date(y, m, d, 10, 15), end: new Date(y, m, d, 12, 15), summary: 'R2.07 Informatique', location: 'Salle I12' },
                     { start: new Date(y, m, d, 14, 0), end: new Date(y, m, d, 16, 0), summary: 'R2.01 Analyse', location: 'Amphi 2' },
-                    // Cours demain pour tester le mode "prochain cours"
                     { start: new Date(y, m, d+1, 9, 0), end: new Date(y, m, d+1, 11, 0), summary: 'Anglais', location: 'Labo Langues' },
                 ];
             };
 
             const processEvents = (allEvents) => {
                 const today = new Date();
-                // Reset heures pour comparaison stricte jour
                 const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
                 const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
-
                 const todayEvents = allEvents.filter(e => e.start >= todayStart && e.start < todayEnd).sort((a, b) => a.start - b.start);
-                
                 if (todayEvents.length > 0) {
-                    setEvents(todayEvents);
-                    setDisplayMode('TODAY');
+                    setEvents(todayEvents); setDisplayMode('TODAY');
                 } else {
-                    // Si pas de cours aujourd'hui, chercher les prochains
                     const upcoming = allEvents.filter(e => e.start >= todayEnd).sort((a, b) => a.start - b.start).slice(0, 5);
-                    setEvents(upcoming);
-                    setDisplayMode('UPCOMING');
+                    setEvents(upcoming); setDisplayMode('UPCOMING');
                 }
             };
 
             return (
                 <div className="glass p-4 rounded-2xl h-full flex flex-col min-h-[180px]">
                     <div className="flex justify-between items-start mb-3">
-                        <div className="text-xs text-subtext font-bold uppercase tracking-wider">
-                            {displayMode === 'TODAY' ? "Aujourd'hui" : "Prochains Cours"}
-                        </div>
-                        <div className="text-xs font-bold text-primary">
-                            {displayMode === 'TODAY' ? new Date().toLocaleDateString('fr-FR', {weekday: 'short', day: 'numeric'}) : 'À venir'}
-                        </div>
+                        <div className="text-xs text-subtext font-bold uppercase tracking-wider">{displayMode === 'TODAY' ? "Aujourd'hui" : "Prochains Cours"}</div>
+                        <div className="text-xs font-bold text-primary">{displayMode === 'TODAY' ? new Date().toLocaleDateString('fr-FR', {weekday: 'short', day: 'numeric'}) : 'À venir'}</div>
                     </div>
-                    
                     {loading ? (
-                        <div className="flex-1 flex items-center justify-center">
-                            <div className="w-5 h-5 border-2 border-white/20 border-t-primary rounded-full animate-spin"></div>
-                        </div>
+                        <div className="flex-1 flex items-center justify-center"><div className="w-5 h-5 border-2 border-white/20 border-t-primary rounded-full animate-spin"></div></div>
                     ) : events.length > 0 ? (
                         <div className="space-y-2 overflow-y-auto hide-scrollbar max-h-[120px]">
-                            {events.map((c, i) => {
-                                const isDemo = !c.summary.includes("R2.") && !c.summary.includes("SAÉ"); // Simple check
-                                return (
+                            {events.map((c, i) => (
                                 <div key={i} className="flex gap-3 items-center text-sm">
                                     <div className="flex flex-col items-center min-w-[35px]">
-                                        <span className="font-mono text-white text-xs whitespace-nowrap">
-                                            {c.start.getHours()}h{c.start.getMinutes().toString().padStart(2, '0')}
-                                        </span>
-                                        {displayMode === 'UPCOMING' && (
-                                            <span className="text-[9px] text-subtext">{c.start.toLocaleDateString('fr-FR', {weekday: 'short'})}</span>
-                                        )}
+                                        <span className="font-mono text-white text-xs whitespace-nowrap">{c.start.getHours()}h{c.start.getMinutes().toString().padStart(2, '0')}</span>
+                                        {displayMode === 'UPCOMING' && <span className="text-[9px] text-subtext">{c.start.toLocaleDateString('fr-FR', {weekday: 'short'})}</span>}
                                     </div>
                                     <div className="flex-1 bg-white/5 rounded px-2 py-1 border-l-2 border-primary overflow-hidden">
                                         <div className="font-medium text-white truncate" title={c.summary}>{c.summary || 'Cours'}</div>
                                         <div className="text-[10px] text-subtext truncate">{c.location || 'Salle inconnue'}</div>
                                     </div>
                                 </div>
-                            )})}
+                            ))}
                         </div>
                     ) : (
-                        <div className="flex-1 flex flex-col items-center justify-center text-xs text-subtext">
-                            <Icon name="coffee" size={24} className="mb-2 opacity-50"/>
-                            Aucun cours détecté
-                        </div>
+                        <div className="flex-1 flex flex-col items-center justify-center text-xs text-subtext"><Icon name="coffee" size={24} className="mb-2 opacity-50"/>Aucun cours détecté</div>
                     )}
                 </div>
             );
@@ -449,50 +392,32 @@
             const [gradesMap, setGradesMap] = useState({});
             const [absences, setAbsences] = useState({});
             const [selectedModule, setSelectedModule] = useState(null);
-            const [globalAvgS2, setGlobalAvgS2] = useState("—");
+            const [stats, setStats] = useState({ avg21: "—", avg22: "—", global: "—" });
             
             const dbRef = useRef(null);
             const appIdRef = useRef(typeof __app_id !== 'undefined' ? __app_id : 'default-fintech-app');
 
             useEffect(() => {
                 const init = async () => {
-                    // Fail-safe timeout
                     const timeout = setTimeout(() => {
                         if (!user) {
-                            console.log("Offline fallback triggered by timeout");
                             const saved = localStorage.getItem('geii_fintech_data');
-                            if (saved) {
-                                const parsed = JSON.parse(saved);
-                                setGradesMap(parsed.grades || {});
-                                setAbsences(parsed.absences || {});
-                            }
+                            if (saved) { const parsed = JSON.parse(saved); setGradesMap(parsed.grades || {}); setAbsences(parsed.absences || {}); }
                             setUser({ uid: 'OFFLINE_USER' });
                         }
                     }, 3000);
 
-                    const hasConfig = typeof __firebase_config !== 'undefined' && __firebase_config;
-
-                    if (!hasConfig) {
+                    if (typeof __firebase_config === 'undefined' || !__firebase_config) {
                         clearTimeout(timeout);
                         const saved = localStorage.getItem('geii_fintech_data');
-                        if (saved) {
-                            const parsed = JSON.parse(saved);
-                            setGradesMap(parsed.grades || {});
-                            setAbsences(parsed.absences || {});
-                        }
+                        if (saved) { const parsed = JSON.parse(saved); setGradesMap(parsed.grades || {}); setAbsences(parsed.absences || {}); }
                         setUser({ uid: 'local_mode' });
                         return;
                     }
 
                     let attempts = 0;
-                    while (!window.firebaseModules && attempts < 20) {
-                        await new Promise(r => setTimeout(r, 100));
-                        attempts++;
-                    }
-
-                    if (!window.firebaseModules) {
-                        return; // Timeout will handle it
-                    }
+                    while (!window.firebaseModules && attempts < 20) { await new Promise(r => setTimeout(r, 100)); attempts++; }
+                    if (!window.firebaseModules) return;
 
                     clearTimeout(timeout);
                     const { initializeApp, getAuth, signInAnonymously, getFirestore, doc, onSnapshot, signInWithCustomToken } = window.firebaseModules;
@@ -502,25 +427,17 @@
                         const auth = getAuth(app);
                         const db = getFirestore(app);
                         dbRef.current = db;
-
                         if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token);
                         else await signInAnonymously(auth);
-
                         onAuthStateChanged(auth, (u) => {
                             setUser(u);
                             if (u) {
                                 onSnapshot(doc(db, 'artifacts', appIdRef.current, 'users', u.uid, 'fintech_data'), (snap) => {
-                                    if (snap.exists()) {
-                                        setGradesMap(snap.data().grades || {});
-                                        setAbsences(snap.data().absences || {});
-                                    }
+                                    if (snap.exists()) { setGradesMap(snap.data().grades || {}); setAbsences(snap.data().absences || {}); }
                                 });
                             }
                         });
-                    } catch (e) {
-                        console.error("Auth error", e);
-                        setUser({ uid: 'error_fallback' });
-                    }
+                    } catch (e) { setUser({ uid: 'error_fallback' }); }
                 };
                 init();
             }, []);
@@ -528,7 +445,6 @@
             const saveData = (newGradesMap, newAbsences) => {
                 const g = newGradesMap || gradesMap;
                 const a = newAbsences || absences;
-                
                 if (!dbRef.current) {
                     localStorage.setItem('geii_fintech_data', JSON.stringify({ grades: g, absences: a }));
                 } else if (user && user.uid !== 'local_mode' && user.uid !== 'OFFLINE_USER') {
@@ -537,19 +453,34 @@
                 }
             };
 
+            // CALCULS MOYENNES (CORRECTIFS UE)
             useEffect(() => {
-                let totalPts = 0;
-                let totalCoef = 0;
-                MODULES_CONFIG.forEach(m => {
-                    const avgStr = calculateSubjectAverage(gradesMap[m.id]);
-                    if (avgStr) {
-                        const avg = parseFloat(avgStr);
-                        const weight = m.coef21 + m.coef22;
-                        totalPts += avg * weight;
-                        totalCoef += weight;
-                    }
-                });
-                setGlobalAvgS2(totalCoef === 0 ? "—" : (totalPts / totalCoef).toFixed(2));
+                const calcUE = (ueKey) => {
+                    let totalPts = 0, totalCoef = 0;
+                    MODULES_CONFIG.forEach(m => {
+                        const coef = m[ueKey];
+                        if (coef > 0) {
+                            const avgStr = calculateSubjectAverage(gradesMap[m.id]);
+                            if (avgStr) {
+                                totalPts += parseFloat(avgStr) * coef;
+                                totalCoef += coef;
+                            }
+                        }
+                    });
+                    return totalCoef === 0 ? "—" : (totalPts / totalCoef).toFixed(2);
+                };
+
+                const avg21 = calcUE('coef21');
+                const avg22 = calcUE('coef22');
+                
+                // Moyenne globale (moyenne des 2 UE)
+                let global = "—";
+                if (avg21 !== "—" && avg22 !== "—") {
+                    global = ((parseFloat(avg21) + parseFloat(avg22)) / 2).toFixed(2);
+                } else if (avg21 !== "—") global = avg21;
+                else if (avg22 !== "—") global = avg22;
+
+                setStats({ avg21, avg22, global });
             }, [gradesMap]);
 
             const handleModuleClick = (m) => setSelectedModule(m);
@@ -558,9 +489,10 @@
                 setGradesMap(newMap);
                 saveData(newMap, undefined);
             };
-            const handleAbsenceUpdate = (val) => {
-                const newVal = Math.max(0, val);
-                const newAbs = { ...absences, [selectedModule.id]: newVal };
+            const updateAbsence = (modId, delta) => {
+                const current = absences[modId] || 0;
+                const newVal = Math.max(0, current + delta);
+                const newAbs = { ...absences, [modId]: newVal };
                 setAbsences(newAbs);
                 saveData(undefined, newAbs);
             };
@@ -569,15 +501,12 @@
 
             return (
                 <div className="min-h-screen bg-black pb-20 selection:bg-primary selection:text-white font-sans">
-                    
                     {selectedModule && (
                         <GradeEditorModal 
                             module={selectedModule} 
                             grades={gradesMap[selectedModule.id]} 
-                            absences={absences[selectedModule.id]}
                             onClose={() => setSelectedModule(null)}
                             onSave={handleUpdateGrades}
-                            onAbsenceChange={handleAbsenceUpdate}
                         />
                     )}
 
@@ -590,10 +519,6 @@
                                 <span className="font-bold text-lg tracking-tight">GEII<span className="text-subtext">OS</span></span>
                             </div>
                             <div className="flex items-center gap-4">
-                                <div className="text-right hidden sm:block">
-                                    <div className="text-[10px] text-subtext uppercase font-bold">Semestre 2</div>
-                                    <div className="text-sm font-bold text-white">2025-2026</div>
-                                </div>
                                 <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-xs font-bold text-subtext border border-white/10">
                                     {user.uid.slice(0,2).toUpperCase()}
                                 </div>
@@ -606,56 +531,45 @@
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 h-auto md:h-48">
                             <div className="col-span-2 md:col-span-2 glass p-6 rounded-3xl flex flex-col justify-between relative overflow-hidden group">
                                 <div className="absolute -right-10 -top-10 w-40 h-40 bg-primary/20 blur-3xl rounded-full group-hover:bg-primary/30 transition-all duration-500 animate-pulse-subtle"></div>
-                                
                                 <div>
                                     <h2 className="text-sm font-bold text-subtext uppercase tracking-wider mb-1">Moyenne Générale</h2>
                                     <div className="text-5xl font-mono font-bold tracking-tighter text-white">
-                                        {globalAvgS2}<span className="text-xl text-subtext opacity-50">/20</span>
+                                        {stats.global}<span className="text-xl text-subtext opacity-50">/20</span>
                                     </div>
                                 </div>
-                                
                                 <div className="flex gap-4 mt-4">
                                     <div className="bg-white/5 px-3 py-1.5 rounded-lg border border-white/5">
                                         <div className="text-[10px] text-subtext">UE21</div>
-                                        <div className="font-bold text-sm">--.--</div>
+                                        <div className={`font-bold text-sm ${getGradeColor(stats.avg21)}`}>{stats.avg21}</div>
                                     </div>
                                     <div className="bg-white/5 px-3 py-1.5 rounded-lg border border-white/5">
                                         <div className="text-[10px] text-subtext">UE22</div>
-                                        <div className="font-bold text-sm">--.--</div>
+                                        <div className={`font-bold text-sm ${getGradeColor(stats.avg22)}`}>{stats.avg22}</div>
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="col-span-1 widget-hover cursor-pointer">
-                                <TimetableWidget />
-                            </div>
-                            <div className="col-span-1 widget-hover cursor-pointer">
-                                <PomodoroWidget />
-                            </div>
+                            <div className="col-span-1 widget-hover cursor-pointer"><TimetableWidget /></div>
+                            <div className="col-span-1 widget-hover cursor-pointer"><PomodoroWidget /></div>
                         </div>
 
                         <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
                             {[
-                                { name: 'Moodle', url: 'https://moodle.univ-lyon1.fr/', color: 'bg-orange-500', icon: 'graduation-cap' },
-                                { name: 'Mire GEII', url: 'https://wwwgeii.univ-lyon1.fr/mire_geii.php', color: 'bg-emerald-500', icon: 'file-text' },
-                                { name: 'ADE Planning', url: '#', color: 'bg-indigo-500', icon: 'calendar' },
-                                { name: 'Mail', url: '#', color: 'bg-sky-500', icon: 'mail' },
+                                { name: 'Moodle', url: LINKS.MOODLE, color: 'bg-orange-500', icon: 'graduation-cap' },
+                                { name: 'Mire GEII', url: LINKS.MIRE, color: 'bg-emerald-500', icon: 'file-text' },
+                                { name: 'ADE Planning', url: LINKS.ADE, color: 'bg-indigo-500', icon: 'calendar' },
+                                { name: 'Mail Univ', url: LINKS.MAIL, color: 'bg-sky-500', icon: 'mail' },
+                                { name: 'Dépôt Justif', url: LINKS.DOCS, color: 'bg-purple-500', icon: 'paperclip' },
                             ].map((link, i) => (
                                 <a key={i} href={link.url} target="_blank" className="flex items-center gap-2 pl-2 pr-4 py-2 bg-[#1c1c1e] border border-white/5 rounded-full whitespace-nowrap hover:bg-[#2c2c2e] transition-colors">
-                                    <div className={`w-6 h-6 rounded-full ${link.color} flex items-center justify-center text-white`}>
-                                        <Icon name={link.icon} size={12} />
-                                    </div>
+                                    <div className={`w-6 h-6 rounded-full ${link.color} flex items-center justify-center text-white`}><Icon name={link.icon} size={12} /></div>
                                     <span className="text-xs font-bold">{link.name}</span>
                                 </a>
                             ))}
                         </div>
 
                         <div>
-                            <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                                <Icon name="folder-open" size={20} className="text-subtext"/>
-                                Portfolio S2
-                            </h3>
-                            
+                            <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><Icon name="folder-open" size={20} className="text-subtext"/>Portfolio S2</h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                                 {MODULES_CONFIG.map(module => {
                                     const avg = calculateSubjectAverage(gradesMap[module.id]);
@@ -663,12 +577,8 @@
                                     const noteCount = gradesMap[module.id]?.length || 0;
 
                                     return (
-                                        <div 
-                                            key={module.id} 
-                                            onClick={() => handleModuleClick(module)}
-                                            className="bg-[#1c1c1e] hover:bg-[#2c2c2e] border border-white/5 p-4 rounded-2xl cursor-pointer transition-all hover:scale-[1.01] hover:shadow-xl group"
-                                        >
-                                            <div className="flex justify-between items-start mb-4">
+                                        <div key={module.id} className="bg-[#1c1c1e] border border-white/5 p-4 rounded-2xl group hover:border-white/20 transition-all">
+                                            <div className="flex justify-between items-start mb-4 cursor-pointer" onClick={() => handleModuleClick(module)}>
                                                 <div className="flex items-center gap-3">
                                                     <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-xs font-bold text-subtext group-hover:text-white group-hover:bg-primary/20 transition-colors">
                                                         {module.short.substring(0,2)}
@@ -685,10 +595,13 @@
                                             <div className="flex justify-between items-center pt-3 border-t border-white/5">
                                                 <div className="flex gap-2 text-[10px] text-subtext font-mono">
                                                     <span>{noteCount} note{noteCount > 1 ? 's' : ''}</span>
-                                                    {absCount > 0 && <span className="text-danger flex items-center gap-1"> • {absCount} abs</span>}
                                                 </div>
-                                                <div className="w-6 h-6 rounded-full border border-white/10 flex items-center justify-center group-hover:bg-primary group-hover:border-primary transition-colors">
-                                                    <Icon name="arrow-right" size={12} className="text-subtext group-hover:text-white"/>
+                                                
+                                                {/* GESTION ABSENCES DANS LE MENU */}
+                                                <div className="flex items-center gap-1 bg-black rounded-lg p-1 border border-white/5">
+                                                    <button onClick={(e) => { e.stopPropagation(); updateAbsence(module.id, -1); }} className="w-5 h-5 flex items-center justify-center hover:bg-white/10 rounded text-subtext hover:text-white">-</button>
+                                                    <span className={`text-xs font-mono font-bold w-4 text-center ${absCount > 0 ? 'text-danger' : 'text-subtext'}`}>{absCount}</span>
+                                                    <button onClick={(e) => { e.stopPropagation(); updateAbsence(module.id, 1); }} className="w-5 h-5 flex items-center justify-center hover:bg-white/10 rounded text-subtext hover:text-white">+</button>
                                                 </div>
                                             </div>
                                         </div>
