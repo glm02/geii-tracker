@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GEII OS v4.0 - Fintech Edition</title>
+    <title>GEII OS v4.1 - Fintech Edition</title>
     
     <!-- React & Dependencies -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
@@ -67,6 +67,12 @@
         input:checked + .slider:before { transform: translateX(16px); }
 
         .widget-hover:hover { transform: scale(1.02); transition: transform 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94); }
+        
+        @keyframes pulse-subtle {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        .animate-pulse-subtle { animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
     </style>
 </head>
 <body>
@@ -76,6 +82,8 @@
         const { useState, useEffect, useRef, useMemo } = React;
 
         // --- DATA & CONFIG ---
+        const ICAL_URL = "https://edt.univ-lyon1.fr/jsp/custom/modules/plannings/anonymous_cal.jsp?resources=13655&projectId=1&calType=ical&firstDate=2025-08-18&lastDate=2026-08-01";
+        
         const MODULES_CONFIG = [
             { id: 'R2.01', short: 'AN2', label: 'Analyse', coef21: 1.1, coef22: 0, category: 'Fonda' },
             { id: 'R2.02', short: 'CC2', label: 'Culture Com', coef21: 1.1, coef22: 0, category: 'Trans' },
@@ -119,9 +127,43 @@
             return "text-success";
         };
 
+        // --- PARSER ICAL ---
+        const parseICS = (icsData) => {
+            const events = [];
+            const lines = icsData.split(/\r\n|\n|\r/);
+            let inEvent = false;
+            let event = {};
+
+            const parseDate = (dateStr) => {
+                // Format: YYYYMMDDTHHMMSSZ or YYYYMMDDTHHMMSS
+                if (!dateStr) return null;
+                const year = parseInt(dateStr.substring(0, 4));
+                const month = parseInt(dateStr.substring(4, 6)) - 1;
+                const day = parseInt(dateStr.substring(6, 8));
+                const hour = parseInt(dateStr.substring(9, 11));
+                const minute = parseInt(dateStr.substring(11, 13));
+                return new Date(year, month, day, hour, minute);
+            };
+
+            for (let line of lines) {
+                if (line.startsWith('BEGIN:VEVENT')) {
+                    inEvent = true;
+                    event = {};
+                } else if (line.startsWith('END:VEVENT')) {
+                    inEvent = false;
+                    if (event.start && event.summary) events.push(event);
+                } else if (inEvent) {
+                    if (line.startsWith('DTSTART:')) event.start = parseDate(line.split(':')[1]);
+                    else if (line.startsWith('DTEND:')) event.end = parseDate(line.split(':')[1]);
+                    else if (line.startsWith('SUMMARY:')) event.summary = line.split(':')[1].replace(/\\,/g, ',');
+                    else if (line.startsWith('LOCATION:')) event.location = line.split(':')[1].replace(/\\,/g, ',');
+                }
+            }
+            return events;
+        };
+
         // --- COMPONENTS ---
 
-        // 1. MODAL D'ÉDITION DE NOTES (LE COEUR DU SYSTÈME)
         const GradeEditorModal = ({ module, grades, onClose, onSave, absences, onAbsenceChange }) => {
             const [localGrades, setLocalGrades] = useState(grades || []);
             const [newNote, setNewNote] = useState('');
@@ -140,7 +182,7 @@
                 const updated = [...localGrades, newEntry];
                 setLocalGrades(updated);
                 setNewNote(''); setNewName('');
-                onSave(updated); // Auto save
+                onSave(updated);
             };
 
             const handleDelete = (id) => {
@@ -151,7 +193,6 @@
 
             const currentAvg = calculateSubjectAverage(localGrades) || "—";
             
-            // Simulateur
             useEffect(() => {
                 if (newNote && newCoef) {
                     const tempGrades = [...localGrades, { value: parseFloat(newNote), coef: parseFloat(newCoef) }];
@@ -162,10 +203,8 @@
             }, [newNote, newCoef, localGrades]);
 
             return (
-                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center glass-modal p-0 sm:p-4">
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center glass-modal p-0 sm:p-4 animate-in fade-in duration-200">
                     <div className="bg-[#1c1c1e] w-full max-w-lg sm:rounded-2xl rounded-t-2xl border border-white/10 shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in slide-in-from-bottom-10 duration-300">
-                        
-                        {/* Header */}
                         <div className="p-4 border-b border-white/10 flex justify-between items-center bg-[#2c2c2e]">
                             <div>
                                 <h2 className="text-xl font-bold text-white flex items-center gap-2">
@@ -176,11 +215,7 @@
                             </div>
                             <button onClick={onClose} className="bg-white/10 p-2 rounded-full hover:bg-white/20"><Icon name="x" size={20}/></button>
                         </div>
-
-                        {/* Content */}
                         <div className="p-4 overflow-y-auto flex-1 space-y-6">
-                            
-                            {/* Liste des notes */}
                             <div className="space-y-2">
                                 <label className="text-xs font-bold text-subtext uppercase tracking-wider">Relevé de notes</label>
                                 {localGrades.length === 0 ? (
@@ -200,8 +235,6 @@
                                     ))
                                 )}
                             </div>
-
-                            {/* Ajout Note */}
                             <div className="bg-white/5 p-4 rounded-xl border border-white/10 space-y-3">
                                 <label className="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-2"><Icon name="plus-circle" size={12}/> Ajouter / Simuler</label>
                                 <div className="grid grid-cols-3 gap-2">
@@ -219,8 +252,6 @@
                                     <button onClick={handleAdd} className="bg-primary hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors">Ajouter</button>
                                 </div>
                             </div>
-
-                            {/* Absences */}
                             <div className="flex justify-between items-center bg-black/40 p-3 rounded-xl border border-white/5">
                                 <div className="flex items-center gap-2 text-sm text-subtext">
                                     <Icon name="clock" size={16} /> Absences injustifiées
@@ -237,7 +268,6 @@
             );
         };
 
-        // 2. WIDGETS
         const PomodoroWidget = () => {
             const [timeLeft, setTimeLeft] = useState(25 * 60);
             const [isActive, setIsActive] = useState(false);
@@ -270,130 +300,189 @@
         };
 
         const TimetableWidget = () => {
-            const today = new Date().getDay(); // 0 = Dimanche, 1 = Lundi...
-            // Mock Data simplifiée pour la démo
-            const schedule = [
-                { day: 1, courses: [{ time: '08:00', name: 'Amphi Élec', room: 'A2' }, { time: '10:00', name: 'TP Info', room: 'I12' }] },
-                { day: 2, courses: [{ time: '09:00', name: 'TD Maths', room: 'B4' }, { time: '14:00', name: 'Anglais', room: 'L2' }] },
-                // ... autres jours
-            ];
-            
-            const days = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
-            const todaySchedule = schedule.find(s => s.day === today)?.courses || [];
+            const [events, setEvents] = useState([]);
+            const [loading, setLoading] = useState(true);
+            const [error, setError] = useState(null);
+
+            useEffect(() => {
+                const fetchSchedule = async () => {
+                    try {
+                        // Utilisation d'un proxy pour éviter les erreurs CORS
+                        const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(ICAL_URL);
+                        const response = await fetch(proxyUrl);
+                        if (!response.ok) throw new Error('Erreur réseau');
+                        const text = await response.text();
+                        const parsedEvents = parseICS(text);
+                        
+                        // Filtrer pour aujourd'hui
+                        const today = new Date();
+                        const todayEvents = parsedEvents.filter(e => 
+                            e.start && 
+                            e.start.getDate() === today.getDate() && 
+                            e.start.getMonth() === today.getMonth() && 
+                            e.start.getFullYear() === today.getFullYear()
+                        ).sort((a, b) => a.start - b.start);
+                        
+                        setEvents(todayEvents);
+                        setLoading(false);
+                    } catch (err) {
+                        console.error("Erreur de chargement EDT", err);
+                        setError("Impossible de charger l'EDT");
+                        setLoading(false);
+                    }
+                };
+
+                fetchSchedule();
+            }, []);
 
             return (
-                <div className="glass p-4 rounded-2xl h-full flex flex-col">
+                <div className="glass p-4 rounded-2xl h-full flex flex-col min-h-[180px]">
                     <div className="flex justify-between items-start mb-3">
-                        <div className="text-xs text-subtext font-bold uppercase tracking-wider">Planning</div>
-                        <div className="text-xs font-bold text-primary">{days[today] || 'Jour'}</div>
+                        <div className="text-xs text-subtext font-bold uppercase tracking-wider">Emploi du temps</div>
+                        <div className="text-xs font-bold text-primary">Aujourd'hui</div>
                     </div>
-                    {todaySchedule.length > 0 ? (
-                        <div className="space-y-2 overflow-y-auto hide-scrollbar">
-                            {todaySchedule.map((c, i) => (
+                    
+                    {loading ? (
+                        <div className="flex-1 flex items-center justify-center">
+                            <div className="w-5 h-5 border-2 border-white/20 border-t-primary rounded-full animate-spin"></div>
+                        </div>
+                    ) : error ? (
+                        <div className="flex-1 flex items-center justify-center text-xs text-danger text-center px-2">
+                            {error}
+                            <br/>(CORS/Réseau)
+                        </div>
+                    ) : events.length > 0 ? (
+                        <div className="space-y-2 overflow-y-auto hide-scrollbar max-h-[120px]">
+                            {events.map((c, i) => (
                                 <div key={i} className="flex gap-3 items-center text-sm">
-                                    <span className="font-mono text-subtext text-xs">{c.time}</span>
-                                    <div className="flex-1 bg-white/5 rounded px-2 py-1 border-l-2 border-primary">
-                                        <div className="font-medium text-white">{c.name}</div>
-                                        <div className="text-[10px] text-subtext">{c.room}</div>
+                                    <span className="font-mono text-subtext text-xs whitespace-nowrap">
+                                        {c.start.getHours()}h{c.start.getMinutes().toString().padStart(2, '0')}
+                                    </span>
+                                    <div className="flex-1 bg-white/5 rounded px-2 py-1 border-l-2 border-primary overflow-hidden">
+                                        <div className="font-medium text-white truncate" title={c.summary}>{c.summary || 'Cours'}</div>
+                                        <div className="text-[10px] text-subtext truncate">{c.location || 'Salle inconnue'}</div>
                                     </div>
                                 </div>
                             ))}
                         </div>
                     ) : (
-                        <div className="flex-1 flex items-center justify-center text-xs text-subtext italic">Aucun cours aujourd'hui</div>
+                        <div className="flex-1 flex flex-col items-center justify-center text-xs text-subtext">
+                            <Icon name="coffee" size={24} className="mb-2 opacity-50"/>
+                            Aucun cours aujourd'hui
+                        </div>
                     )}
                 </div>
             );
         };
 
-        // --- MAIN APP ---
         const App = () => {
             const [user, setUser] = useState(null);
-            const [view, setView] = useState('DASHBOARD');
-            const [gradesMap, setGradesMap] = useState({}); // { 'R2.01': [{value: 12, coef:1, name: 'DS'}] }
+            const [gradesMap, setGradesMap] = useState({});
             const [absences, setAbsences] = useState({});
             const [selectedModule, setSelectedModule] = useState(null);
-            
-            // Stats global
             const [globalAvgS2, setGlobalAvgS2] = useState("—");
             
             const dbRef = useRef(null);
             const appIdRef = useRef(typeof __app_id !== 'undefined' ? __app_id : 'default-fintech-app');
 
-            // --- INIT ---
             useEffect(() => {
                 const init = async () => {
-                    if (typeof __firebase_config === 'undefined' || !__firebase_config) {
-                        // OFFLINE MOCK
+                    // Fail-safe timeout
+                    const timeout = setTimeout(() => {
+                        if (!user) {
+                            console.log("Offline fallback triggered by timeout");
+                            const saved = localStorage.getItem('geii_fintech_data');
+                            if (saved) {
+                                const parsed = JSON.parse(saved);
+                                setGradesMap(parsed.grades || {});
+                                setAbsences(parsed.absences || {});
+                            }
+                            setUser({ uid: 'OFFLINE_USER' });
+                        }
+                    }, 3000);
+
+                    const hasConfig = typeof __firebase_config !== 'undefined' && __firebase_config;
+
+                    if (!hasConfig) {
+                        clearTimeout(timeout);
                         const saved = localStorage.getItem('geii_fintech_data');
                         if (saved) {
                             const parsed = JSON.parse(saved);
                             setGradesMap(parsed.grades || {});
                             setAbsences(parsed.absences || {});
                         }
-                        setUser({ uid: 'offline' });
+                        setUser({ uid: 'local_mode' });
                         return;
                     }
 
+                    let attempts = 0;
+                    while (!window.firebaseModules && attempts < 20) {
+                        await new Promise(r => setTimeout(r, 100));
+                        attempts++;
+                    }
+
+                    if (!window.firebaseModules) {
+                        return; // Timeout will handle it
+                    }
+
+                    clearTimeout(timeout);
                     const { initializeApp, getAuth, signInAnonymously, getFirestore, doc, onSnapshot, signInWithCustomToken } = window.firebaseModules;
-                    const app = initializeApp(JSON.parse(__firebase_config));
-                    const auth = getAuth(app);
-                    const db = getFirestore(app);
-                    dbRef.current = db;
+                    
+                    try {
+                        const app = initializeApp(JSON.parse(__firebase_config));
+                        const auth = getAuth(app);
+                        const db = getFirestore(app);
+                        dbRef.current = db;
 
-                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token);
-                    else await signInAnonymously(auth);
+                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token);
+                        else await signInAnonymously(auth);
 
-                    onAuthStateChanged(auth, (u) => {
-                        setUser(u);
-                        if (u) {
-                            onSnapshot(doc(db, 'artifacts', appIdRef.current, 'users', u.uid, 'fintech_data'), (snap) => {
-                                if (snap.exists()) {
-                                    setGradesMap(snap.data().grades || {});
-                                    setAbsences(snap.data().absences || {});
-                                }
-                            });
-                        }
-                    });
+                        onAuthStateChanged(auth, (u) => {
+                            setUser(u);
+                            if (u) {
+                                onSnapshot(doc(db, 'artifacts', appIdRef.current, 'users', u.uid, 'fintech_data'), (snap) => {
+                                    if (snap.exists()) {
+                                        setGradesMap(snap.data().grades || {});
+                                        setAbsences(snap.data().absences || {});
+                                    }
+                                });
+                            }
+                        });
+                    } catch (e) {
+                        console.error("Auth error", e);
+                        setUser({ uid: 'error_fallback' });
+                    }
                 };
                 init();
             }, []);
 
-            // --- SAVE ---
             const saveData = (newGradesMap, newAbsences) => {
                 const g = newGradesMap || gradesMap;
                 const a = newAbsences || absences;
                 
                 if (!dbRef.current) {
                     localStorage.setItem('geii_fintech_data', JSON.stringify({ grades: g, absences: a }));
-                } else if (user) {
+                } else if (user && user.uid !== 'local_mode' && user.uid !== 'OFFLINE_USER') {
                     const { doc, setDoc } = window.firebaseModules;
                     setDoc(doc(dbRef.current, 'artifacts', appIdRef.current, 'users', user.uid, 'fintech_data'), { grades: g, absences: a }, { merge: true });
                 }
             };
 
-            // --- CALCULS GLOBAUX ---
             useEffect(() => {
                 let totalPts = 0;
                 let totalCoef = 0;
-                
-                // Pour simplifier, on fait une moyenne globale brute pondérée par les coefs UE21/UE22
-                // Une vraie implémentation ferait UE par UE
                 MODULES_CONFIG.forEach(m => {
                     const avgStr = calculateSubjectAverage(gradesMap[m.id]);
                     if (avgStr) {
                         const avg = parseFloat(avgStr);
-                        const weight = m.coef21 + m.coef22; // Somme des poids
+                        const weight = m.coef21 + m.coef22;
                         totalPts += avg * weight;
                         totalCoef += weight;
                     }
                 });
-
                 setGlobalAvgS2(totalCoef === 0 ? "—" : (totalPts / totalCoef).toFixed(2));
             }, [gradesMap]);
 
-
-            // --- HANDLERS ---
             const handleModuleClick = (m) => setSelectedModule(m);
             const handleUpdateGrades = (updatedGrades) => {
                 const newMap = { ...gradesMap, [selectedModule.id]: updatedGrades };
@@ -407,7 +496,7 @@
                 saveData(undefined, newAbs);
             };
 
-            if (!user) return <div className="h-screen bg-black flex items-center justify-center text-white font-mono animate-pulse">BOOTING GEII OS...</div>;
+            if (!user) return <div className="h-screen bg-black flex flex-col items-center justify-center text-white font-mono"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>BOOTING GEII OS...</div>;
 
             return (
                 <div className="min-h-screen bg-black pb-20 selection:bg-primary selection:text-white font-sans">
@@ -423,7 +512,6 @@
                         />
                     )}
 
-                    {/* HEADER */}
                     <header className="sticky top-0 z-40 bg-black/80 backdrop-blur-md border-b border-white/10">
                         <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
                             <div className="flex items-center gap-3">
@@ -446,12 +534,9 @@
 
                     <main className="max-w-5xl mx-auto p-4 space-y-6">
 
-                        {/* HERO SECTION - BENTO GRID */}
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 h-auto md:h-48">
-                            
-                            {/* MAIN STAT */}
                             <div className="col-span-2 md:col-span-2 glass p-6 rounded-3xl flex flex-col justify-between relative overflow-hidden group">
-                                <div className="absolute -right-10 -top-10 w-40 h-40 bg-primary/20 blur-3xl rounded-full group-hover:bg-primary/30 transition-all duration-500"></div>
+                                <div className="absolute -right-10 -top-10 w-40 h-40 bg-primary/20 blur-3xl rounded-full group-hover:bg-primary/30 transition-all duration-500 animate-pulse-subtle"></div>
                                 
                                 <div>
                                     <h2 className="text-sm font-bold text-subtext uppercase tracking-wider mb-1">Moyenne Générale</h2>
@@ -472,7 +557,6 @@
                                 </div>
                             </div>
 
-                            {/* WIDGETS */}
                             <div className="col-span-1 widget-hover cursor-pointer">
                                 <TimetableWidget />
                             </div>
@@ -481,22 +565,22 @@
                             </div>
                         </div>
 
-                        {/* QUICK ACTIONS ROW */}
                         <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
                             {[
-                                { name: 'Moodle', url: 'https://moodle.univ-lyon1.fr/', color: 'bg-orange-500' },
-                                { name: 'ADE Planning', url: '#', color: 'bg-indigo-500' },
-                                { name: 'Mail', url: '#', color: 'bg-sky-500' },
-                                { name: 'GitHub', url: '#', color: 'bg-gray-700' }
+                                { name: 'Moodle', url: 'https://moodle.univ-lyon1.fr/', color: 'bg-orange-500', icon: 'graduation-cap' },
+                                { name: 'Mire GEII', url: 'https://wwwgeii.univ-lyon1.fr/mire_geii.php', color: 'bg-emerald-500', icon: 'file-text' },
+                                { name: 'ADE Planning', url: '#', color: 'bg-indigo-500', icon: 'calendar' },
+                                { name: 'Mail', url: '#', color: 'bg-sky-500', icon: 'mail' },
                             ].map((link, i) => (
                                 <a key={i} href={link.url} target="_blank" className="flex items-center gap-2 pl-2 pr-4 py-2 bg-[#1c1c1e] border border-white/5 rounded-full whitespace-nowrap hover:bg-[#2c2c2e] transition-colors">
-                                    <div className={`w-6 h-6 rounded-full ${link.color} flex items-center justify-center text-[10px] font-bold`}>{link.name[0]}</div>
+                                    <div className={`w-6 h-6 rounded-full ${link.color} flex items-center justify-center text-white`}>
+                                        <Icon name={link.icon} size={12} />
+                                    </div>
                                     <span className="text-xs font-bold">{link.name}</span>
                                 </a>
                             ))}
                         </div>
 
-                        {/* PORTFOLIO LIST (GRADES) */}
                         <div>
                             <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
                                 <Icon name="folder-open" size={20} className="text-subtext"/>
@@ -529,8 +613,6 @@
                                                     {avg || <span className="text-subtext opacity-30">—</span>}
                                                 </div>
                                             </div>
-
-                                            {/* Mini Stats Footer */}
                                             <div className="flex justify-between items-center pt-3 border-t border-white/5">
                                                 <div className="flex gap-2 text-[10px] text-subtext font-mono">
                                                     <span>{noteCount} note{noteCount > 1 ? 's' : ''}</span>
