@@ -36,6 +36,8 @@
                         warning: '#f59e0b',
                         text: '#FFFFFF',
                         subtext: '#A1A1AA',
+                        ue21: '#3b82f6', // Bleu
+                        ue22: '#8b5cf6', // Violet
                     },
                     fontFamily: {
                         sans: ['Inter', 'sans-serif'],
@@ -53,6 +55,8 @@
         .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
         .slide-up { animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
         @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        /* Fix pour inputs mobile */
+        input, select, textarea { font-size: 16px; } 
     </style>
 </head>
 <body>
@@ -66,15 +70,15 @@
         
         const MODULES_CONFIG_S2 = [
             { id: 'R2.01', short: 'AN2', label: 'Analyse', coef21: 1.1, coef22: 0, cat: 'Fonda' },
-            { id: 'R2.02', short: 'CC2', label: 'Culture Com', coef21: 1.1, coef22: 0, cat: 'Trans' },
-            { id: 'R2.03', short: 'VE2', label: 'Vie Entr.', coef21: 0.8, coef22: 0, cat: 'Trans' },
+            { id: 'R2.02', short: 'CC2', label: 'Culture & Com.', coef21: 1.1, coef22: 0, cat: 'Trans' },
+            { id: 'R2.03', short: 'VE2', label: 'Vie Entreprise', coef21: 0.8, coef22: 0, cat: 'Trans' },
             { id: 'R2.04', short: 'OML2', label: 'Outils Maths', coef21: 2.6, coef22: 0, cat: 'Fonda' },
-            { id: 'R2.05', short: 'PPP2', label: 'Projet Pro', coef21: 0.8, coef22: 0.2, cat: 'Trans' },
+            { id: 'R2.05', short: 'PPP2', label: 'Projet Pro (PPP)', coef21: 0.8, coef22: 0.2, cat: 'Trans' },
             { id: 'R2.06', short: 'AUTO2', label: 'Automatisme', coef21: 0, coef22: 2.6, cat: 'Tech' },
-            { id: 'R2.07', short: 'INFO2', label: 'Info Indus', coef21: 0, coef22: 2.6, cat: 'Tech' },
-            { id: 'R2.08', short: 'ELEN2', label: 'Élec/Énergie', coef21: 1.3, coef22: 1.3, cat: 'Tech' },
+            { id: 'R2.07', short: 'INFO2', label: 'Info Industrielle', coef21: 0, coef22: 2.6, cat: 'Tech' },
+            { id: 'R2.08', short: 'ELEN2', label: 'Élec & Énergie', coef21: 1.3, coef22: 1.3, cat: 'Tech' },
             { id: 'R2.09', short: 'ENER2', label: 'Énergie', coef21: 1.3, coef22: 1.3, cat: 'Tech' },
-            { id: 'R2.10', short: 'PApp2', label: 'Physique App', coef21: 0, coef22: 1.0, cat: 'Fonda' },
+            { id: 'R2.10', short: 'PApp2', label: 'Physique Appliquée', coef21: 0, coef22: 1.0, cat: 'Fonda' },
             { id: 'S2.1', short: 'SAÉ 2.1', label: 'SAÉ CAPA', coef21: 2.5, coef22: 2.5, cat: 'SAÉ' },
             { id: 'S2.2', short: 'SAÉ 2.2', label: 'SAÉ Robot', coef21: 2.5, coef22: 2.5, cat: 'SAÉ' },
             { id: 'PF2', short: 'PORTF', label: 'Portfolio S2', coef21: 1.0, coef22: 1.0, cat: 'SAÉ' },
@@ -103,7 +107,6 @@
             const events = [];
             const lines = icsData.split(/\r\n|\n|\r/);
             let inEvent = false, event = {};
-            
             const parseDate = (d) => {
                 if(!d) return null;
                 const y = parseInt(d.substring(0,4)), m = parseInt(d.substring(4,6))-1, day = parseInt(d.substring(6,8));
@@ -111,7 +114,6 @@
                 if(d.includes('T')) { h = parseInt(d.split('T')[1].substring(0,2)); min = parseInt(d.split('T')[1].substring(2,4)); }
                 return new Date(y, m, day, h, min);
             };
-
             for(let l of lines) {
                 if(l.startsWith('BEGIN:VEVENT')) { inEvent=true; event={}; }
                 else if(l.startsWith('END:VEVENT')) { inEvent=false; if(event.start) events.push(event); }
@@ -129,7 +131,7 @@
 
         // 1. BOTTOM NAVIGATION
         const BottomNav = ({ active, setView }) => (
-            <div className="fixed bottom-0 w-full bg-[#050505]/90 backdrop-blur-xl border-t border-white/10 pb-safe pt-2 px-2 flex justify-between z-50">
+            <div className="fixed bottom-0 w-full bg-[#050505]/95 backdrop-blur-xl border-t border-white/10 pb-safe pt-2 px-2 flex justify-between z-50">
                 {[
                     { id: 'HOME', icon: 'layout-grid', label: 'Accueil' },
                     { id: 'AGENDA', icon: 'calendar', label: 'Agenda' },
@@ -162,32 +164,39 @@
                 setLocalGrades(next); onSave(next);
             };
 
+            const currentAvg = calcAvg(localGrades) || '—';
+
             return (
                 <div className="fixed inset-0 z-[60] flex items-end justify-center glass-modal">
                     <div className="bg-[#121212] w-full max-w-md rounded-t-3xl border-t border-white/10 flex flex-col max-h-[90vh] slide-up">
                         <div className="p-4 flex justify-between items-center border-b border-white/10">
-                            <div><h3 className="font-bold text-lg text-white">{module.label}</h3><p className="text-xs text-subtext">{module.id}</p></div>
+                            <div>
+                                <h3 className="font-bold text-lg text-white">{module.label}</h3>
+                                <p className="text-xs text-subtext flex gap-2">
+                                    {module.id} <span className={`font-mono font-bold ${getGradeColor(currentAvg)}`}>Moy: {currentAvg}</span>
+                                </p>
+                            </div>
                             <button onClick={onClose} className="p-2 bg-white/10 rounded-full"><Icon name="x" size={20}/></button>
                         </div>
                         
                         <div className="p-4 overflow-y-auto pb-safe space-y-4">
-                            {/* FORMULAIRE EN HAUT */}
+                            {/* FORMULAIRE EN HAUT POUR CLAVIER MOBILE */}
                             <div className="bg-primary/10 p-4 rounded-xl border border-primary/20 space-y-3">
                                 <label className="text-xs font-bold text-primary uppercase">Nouvelle Note</label>
                                 <div className="flex gap-2">
-                                    <input value={name} onChange={e=>setName(e.target.value)} placeholder="Titre (ex: DS1)" className="flex-1 bg-black/40 border border-white/10 rounded-lg p-3 text-sm focus:border-primary outline-none" />
-                                    <input type="number" value={val} onChange={e=>setVal(e.target.value)} placeholder="20" className="w-16 bg-black/40 border border-white/10 rounded-lg p-3 text-sm font-bold text-center focus:border-primary outline-none" />
-                                    <input type="number" value={coef} onChange={e=>setCoef(e.target.value)} placeholder="1" className="w-14 bg-black/40 border border-white/10 rounded-lg p-3 text-sm text-center text-subtext focus:border-primary outline-none" />
+                                    <input value={name} onChange={e=>setName(e.target.value)} placeholder="Titre (ex: DS1)" className="flex-1 bg-black/40 border border-white/10 rounded-lg p-3 text-sm focus:border-primary outline-none text-white" />
+                                    <input type="number" value={val} onChange={e=>setVal(e.target.value)} placeholder="20" className="w-16 bg-black/40 border border-white/10 rounded-lg p-3 text-sm font-bold text-center focus:border-primary outline-none text-white" />
+                                    <input type="number" value={coef} onChange={e=>setCoef(e.target.value)} placeholder="1" className="w-14 bg-black/40 border border-white/10 rounded-lg p-3 text-sm text-center text-subtext focus:border-primary outline-none text-white" />
                                 </div>
                                 <button onClick={add} className="w-full bg-primary text-white py-3 rounded-lg font-bold text-sm shadow-lg shadow-primary/20 active:scale-95 transition-transform">AJOUTER</button>
                             </div>
 
                             <div className="space-y-2">
                                 <label className="text-xs font-bold text-subtext uppercase">Historique</label>
-                                {localGrades.length === 0 ? <p className="text-center text-sm text-subtext py-4">Aucune note</p> : 
+                                {localGrades.length === 0 ? <p className="text-center text-sm text-subtext py-4">Aucune note enregistrée</p> : 
                                 localGrades.slice().reverse().map(g => (
                                     <div key={g.id} className="flex justify-between items-center bg-card p-3 rounded-xl border border-white/5">
-                                        <div><div className="font-bold text-sm">{g.name}</div><div className="text-xs text-subtext">Coef {g.coef}</div></div>
+                                        <div><div className="font-bold text-sm text-white">{g.name}</div><div className="text-xs text-subtext">Coef {g.coef}</div></div>
                                         <div className="flex items-center gap-3">
                                             <span className={`font-mono font-bold text-lg ${getGradeColor(g.value)}`}>{g.value}</span>
                                             <button onClick={()=>remove(g.id)} className="text-danger opacity-50 hover:opacity-100"><Icon name="trash-2" size={16}/></button>
@@ -201,21 +210,18 @@
             );
         };
 
-        // 3. WIDGETS VIE ÉTUDIANTE
+        // 3. WIDGETS
         const WeatherWidget = () => {
             const [temp, setTemp] = useState('--');
             useEffect(() => {
-                fetch('https://api.open-meteo.com/v1/forecast?latitude=45.77&longitude=4.88&current_weather=true') // Villeurbanne Coords
+                fetch('https://api.open-meteo.com/v1/forecast?latitude=45.77&longitude=4.88&current_weather=true')
                     .then(res => res.json())
                     .then(data => setTemp(Math.round(data.current_weather.temperature)))
                     .catch(e => console.log(e));
             }, []);
             return (
                 <div className="glass p-4 rounded-2xl flex items-center justify-between">
-                    <div>
-                        <div className="text-xs text-subtext uppercase font-bold">Météo Villeurbanne</div>
-                        <div className="text-2xl font-bold mt-1">{temp}°C</div>
-                    </div>
+                    <div><div className="text-xs text-subtext uppercase font-bold">Météo Villeurbanne</div><div className="text-2xl font-bold mt-1">{temp}°C</div></div>
                     <Icon name="cloud-sun" size={32} className="text-yellow-400" />
                 </div>
             );
@@ -250,22 +256,16 @@
         const App = () => {
             const [view, setView] = useState('HOME');
             const [user, setUser] = useState(null);
-            
-            // Data States
             const [s1Grades, setS1Grades] = useState({ ue11: '', ue12: '' });
             const [s2Grades, setS2Grades] = useState({});
             const [adeUrl, setAdeUrl] = useState(DEFAULT_ADE);
             const [events, setEvents] = useState([]);
             const [nextDS, setNextDS] = useState(null);
             const [selectedModule, setSelectedModule] = useState(null);
-            
-            // Calculs
             const [stats, setStats] = useState({ ue21: null, ue22: null, s2: null });
 
-            // Init
             useEffect(() => {
                 const init = async () => {
-                    // Simulation auth pour demo si pas de firebase config
                     if(typeof __firebase_config === 'undefined') {
                         const localData = JSON.parse(localStorage.getItem('geii_data') || '{}');
                         setS1Grades(localData.s1 || { ue11: '', ue12: '' });
@@ -274,19 +274,43 @@
                         setUser({ uid: 'demo' });
                         return;
                     }
-                    // Real Firebase Init would go here (skipped for brevity, using demo logic if needed)
+                    const { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, getFirestore, doc, onSnapshot } = window.firebaseModules;
+                    const app = initializeApp(JSON.parse(__firebase_config));
+                    const auth = getAuth(app);
+                    const db = getFirestore(app);
+                    
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await window.firebaseModules.signInWithCustomToken(auth, __initial_auth_token);
+                    else await signInAnonymously(auth);
+
+                    onAuthStateChanged(auth, (u) => {
+                        setUser(u);
+                        if(u) {
+                            onSnapshot(doc(db, 'artifacts', 'geii-os-v6', 'users', u.uid, 'data'), (snap) => {
+                                if(snap.exists()) {
+                                    const d = snap.data();
+                                    setS1Grades(d.s1 || { ue11: '', ue12: '' });
+                                    setS2Grades(d.s2 || {});
+                                    setAdeUrl(d.ade || DEFAULT_ADE);
+                                }
+                            });
+                        }
+                    });
                 };
                 init();
             }, []);
 
-            // Sauvegarde Local (Fallback)
             useEffect(() => {
                 if(user) {
-                    localStorage.setItem('geii_data', JSON.stringify({ s1: s1Grades, s2: s2Grades, ade: adeUrl }));
+                    if(typeof __firebase_config === 'undefined') {
+                        localStorage.setItem('geii_data', JSON.stringify({ s1: s1Grades, s2: s2Grades, ade: adeUrl }));
+                    } else {
+                        const { getFirestore, doc, setDoc } = window.firebaseModules;
+                        const db = getFirestore();
+                        setDoc(doc(db, 'artifacts', 'geii-os-v6', 'users', user.uid, 'data'), { s1: s1Grades, s2: s2Grades, ade: adeUrl }, { merge: true });
+                    }
                 }
             }, [s1Grades, s2Grades, adeUrl, user]);
 
-            // Fetch Agenda & Detect DS
             useEffect(() => {
                 const fetchEdt = async () => {
                     try {
@@ -294,26 +318,16 @@
                         const res = await fetch(proxy);
                         const text = await res.text();
                         const parsed = parseICS(text);
-                        
-                        // Filter Future Events
                         const now = new Date();
                         const upcoming = parsed.filter(e => e.start > now).sort((a,b) => a.start - b.start);
                         setEvents(upcoming);
-
-                        // Find next DS
-                        const ds = upcoming.find(e => 
-                            e.summary.toLowerCase().includes('ds') || 
-                            e.summary.toLowerCase().includes('exam') || 
-                            e.summary.toLowerCase().includes('contrôle')
-                        );
+                        const ds = upcoming.find(e => e.summary.toLowerCase().includes('ds') || e.summary.toLowerCase().includes('exam') || e.summary.toLowerCase().includes('contrôle'));
                         setNextDS(ds);
-
                     } catch(e) { console.log("Erreur EDT", e); }
                 };
                 if(adeUrl) fetchEdt();
             }, [adeUrl]);
 
-            // Calcul Moyennes S2
             useEffect(() => {
                 let pts21=0, c21=0, pts22=0, c22=0;
                 MODULES_CONFIG_S2.forEach(m => {
@@ -329,81 +343,53 @@
                 setStats({ ue21: avg21, ue22: avg22, s2 });
             }, [s2Grades]);
 
-            // Validation Année
             const validateYear = () => {
                 const s1 = (parseFloat(s1Grades.ue11) + parseFloat(s1Grades.ue12)) / 2;
                 const s2 = parseFloat(stats.s2);
                 if(!s1 || !s2) return { status: 'PENDING', label: 'En attente' };
-                
-                const global = (s1 + s2) / 2;
-                // Règle simplifiée : > 10 partout = OK, sinon danger
                 if(s1 >= 10 && s2 >= 10) return { status: 'OK', label: 'PASSAGE VALIDÉ ✅', color: 'text-success' };
+                const global = (s1 + s2) / 2;
                 if(global >= 10) return { status: 'WARN', label: 'COMPENSATION ? ⚠️', color: 'text-warning' };
                 return { status: 'FAIL', label: 'EN DANGER 🛑', color: 'text-danger' };
             };
 
             const status = validateYear();
 
-            if (!user) return <div className="h-screen bg-black flex items-center justify-center text-white">Chargement GEII OS...</div>;
+            if (!user) return <div className="h-screen bg-black flex items-center justify-center text-white font-mono animate-pulse">Chargement GEII OS...</div>;
 
             return (
                 <div className="min-h-screen bg-bg text-white pb-24 font-sans">
-                    
-                    {/* MODAL */}
                     {selectedModule && <GradeModal module={selectedModule} grades={s2Grades[selectedModule.id]} onClose={()=>setSelectedModule(null)} onSave={(g)=>setS2Grades({...s2Grades, [selectedModule.id]: g})} />}
 
-                    {/* HEADER */}
-                    <div className="p-6 pt-12 flex justify-between items-end bg-gradient-to-b from-primary/20 to-transparent">
-                        <div>
-                            <div className="text-xs font-bold text-primary mb-1 uppercase tracking-wider">Mon Espace</div>
-                            <h1 className="text-3xl font-bold">Bonjour 👋</h1>
-                        </div>
+                    <div className="p-6 pt-12 flex justify-between items-end bg-gradient-to-b from-primary/10 to-transparent sticky top-0 z-40 backdrop-blur-md">
+                        <div><div className="text-xs font-bold text-primary mb-1 uppercase tracking-wider">Mon Espace</div><h1 className="text-3xl font-bold">Bonjour 👋</h1></div>
                         <div className="w-10 h-10 rounded-full bg-card border border-white/10 flex items-center justify-center font-bold text-sm">You</div>
                     </div>
 
-                    {/* CONTENU */}
-                    <div className="px-4 space-y-6">
-
-                        {/* HOME VIEW */}
+                    <div className="px-4 space-y-6 mt-4">
                         {view === 'HOME' && (
                             <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                
-                                {/* ALERTE DS */}
                                 {nextDS && (
                                     <div className="bg-gradient-to-r from-danger/20 to-orange-500/20 p-4 rounded-2xl border border-danger/30 flex items-center gap-4">
                                         <div className="bg-danger/20 p-3 rounded-full text-danger"><Icon name="alert-triangle" size={24}/></div>
-                                        <div>
-                                            <div className="text-xs font-bold text-danger uppercase">Prochain DS Détecté</div>
-                                            <div className="font-bold text-white">{nextDS.summary}</div>
-                                            <div className="text-xs text-subtext">{new Date(nextDS.start).toLocaleDateString('fr-FR', {weekday: 'long', day: 'numeric'})} • {nextDS.location}</div>
-                                        </div>
+                                        <div><div className="text-xs font-bold text-danger uppercase">Prochain DS</div><div className="font-bold text-white">{nextDS.summary}</div><div className="text-xs text-subtext">{new Date(nextDS.start).toLocaleDateString('fr-FR', {weekday: 'short', day: 'numeric'})} • {nextDS.location}</div></div>
                                     </div>
                                 )}
-
-                                {/* STATUS PASSAGE */}
                                 <div className="glass p-5 rounded-3xl relative overflow-hidden">
                                     <div className="absolute top-0 right-0 p-4 opacity-10"><Icon name="flag" size={80}/></div>
                                     <h2 className="text-sm font-bold text-subtext uppercase tracking-wider mb-2">Statut Année</h2>
                                     <div className={`text-2xl font-bold ${status.color} mb-1`}>{status.label}</div>
                                     <div className="text-xs text-subtext">Moyenne S2 Est. : <span className="text-white font-mono">{stats.s2 || '--'}</span></div>
                                 </div>
-
                                 <WeatherWidget />
-                                
-                                {/* PROCHAINS COURS */}
                                 <div>
                                     <h3 className="font-bold mb-3 flex items-center gap-2">Prochains cours <Icon name="chevron-right" size={16} className="text-subtext"/></h3>
                                     <div className="space-y-2">
                                         {events.slice(0, 3).map((e, i) => (
                                             <div key={i} className="bg-card p-3 rounded-xl border border-white/5 flex gap-3 items-center">
-                                                <div className="flex flex-col items-center min-w-[40px]">
-                                                    <span className="text-xs font-bold text-white">{e.start.getHours()}h{e.start.getMinutes()||'00'}</span>
-                                                </div>
+                                                <div className="flex flex-col items-center min-w-[40px]"><span className="text-xs font-bold text-white">{e.start.getHours()}h{e.start.getMinutes()||'00'}</span></div>
                                                 <div className="h-8 w-[2px] bg-primary rounded-full"></div>
-                                                <div className="overflow-hidden">
-                                                    <div className="font-bold text-sm truncate">{e.summary}</div>
-                                                    <div className="text-[10px] text-subtext">{e.location}</div>
-                                                </div>
+                                                <div className="overflow-hidden"><div className="font-bold text-sm truncate">{e.summary}</div><div className="text-[10px] text-subtext">{e.location}</div></div>
                                             </div>
                                         ))}
                                         {events.length === 0 && <div className="text-center text-xs text-subtext py-4">Aucun cours à venir</div>}
@@ -412,147 +398,104 @@
                             </div>
                         )}
 
-                        {/* NOTES VIEW */}
                         {view === 'NOTES' && (
-                            <div className="space-y-6 animate-in fade-in duration-300">
-                                
+                            <div className="space-y-8 animate-in fade-in duration-300">
                                 {/* S1 INPUTS */}
                                 <div className="bg-card p-4 rounded-2xl border border-white/5 space-y-3">
-                                    <h3 className="font-bold text-sm uppercase text-subtext flex gap-2 items-center"><Icon name="archive" size={14}/> Moyennes S1 (Acquis)</h3>
+                                    <h3 className="font-bold text-sm uppercase text-subtext flex gap-2 items-center"><Icon name="archive" size={14}/> Moyennes S1</h3>
                                     <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="text-[10px] text-subtext block mb-1">Moy. UE11</label>
-                                            <input type="number" value={s1Grades.ue11} onChange={e=>setS1Grades({...s1Grades, ue11: e.target.value})} className="w-full bg-black/50 border border-white/10 rounded-lg p-2 text-center font-mono font-bold" placeholder="--" />
-                                        </div>
-                                        <div>
-                                            <label className="text-[10px] text-subtext block mb-1">Moy. UE12</label>
-                                            <input type="number" value={s1Grades.ue12} onChange={e=>setS1Grades({...s1Grades, ue12: e.target.value})} className="w-full bg-black/50 border border-white/10 rounded-lg p-2 text-center font-mono font-bold" placeholder="--" />
-                                        </div>
+                                        <div><label className="text-[10px] text-subtext block mb-1">Moy. UE11</label><input type="number" value={s1Grades.ue11} onChange={e=>setS1Grades({...s1Grades, ue11: e.target.value})} className="w-full bg-black/50 border border-white/10 rounded-lg p-2 text-center font-mono font-bold" placeholder="--" /></div>
+                                        <div><label className="text-[10px] text-subtext block mb-1">Moy. UE12</label><input type="number" value={s1Grades.ue12} onChange={e=>setS1Grades({...s1Grades, ue12: e.target.value})} className="w-full bg-black/50 border border-white/10 rounded-lg p-2 text-center font-mono font-bold" placeholder="--" /></div>
                                     </div>
                                 </div>
 
-                                {/* S2 LIST */}
+                                {/* UE 21 BLOCK */}
                                 <div>
-                                    <div className="flex justify-between items-end mb-4 px-1">
-                                        <h2 className="text-xl font-bold">Semestre 2</h2>
-                                        <span className="text-xs bg-primary/20 text-primary px-2 py-1 rounded">En cours</span>
+                                    <div className="flex justify-between items-center bg-ue21/20 p-3 rounded-t-2xl border-t border-x border-ue21/30">
+                                        <span className="text-sm font-bold text-ue21 uppercase">UE21 - Concevoir</span>
+                                        <span className="font-mono font-bold text-white bg-black/40 px-2 py-1 rounded text-sm">{stats.ue21 || '--'}</span>
                                     </div>
-                                    
-                                    {/* UE 21 */}
-                                    <div className="mb-6">
-                                        <div className="flex justify-between items-center bg-blue-900/20 p-2 rounded-lg mb-2 border border-blue-500/20">
-                                            <span className="text-xs font-bold text-blue-400 uppercase ml-2">UE21 - Concevoir</span>
-                                            <span className="font-mono font-bold text-white mr-2">{stats.ue21 || '--'}</span>
-                                        </div>
-                                        <div className="space-y-2">
-                                            {MODULES_CONFIG_S2.filter(m => m.coef21 > 0).map(m => (
-                                                <div key={m.id} onClick={()=>setSelectedModule(m)} className="bg-card p-3 rounded-xl flex justify-between items-center active:scale-95 transition-transform border border-white/5">
-                                                    <div>
-                                                        <div className="font-bold text-sm">{m.label}</div>
-                                                        <div className="text-[10px] text-subtext">{m.short} • Coef {m.coef21}</div>
-                                                    </div>
-                                                    <div className={`font-mono font-bold ${getGradeColor(calcAvg(s2Grades[m.id]))}`}>{calcAvg(s2Grades[m.id]) || "—"}</div>
+                                    <div className="bg-card rounded-b-2xl border-b border-x border-white/5 overflow-hidden">
+                                        {MODULES_CONFIG_S2.filter(m => m.coef21 > 0).map((m, i) => (
+                                            <div key={m.id} onClick={()=>setSelectedModule(m)} className={`p-4 flex justify-between items-center active:bg-white/5 transition-colors ${i !== 0 ? 'border-t border-white/5' : ''}`}>
+                                                <div>
+                                                    <div className="font-bold text-white text-base">{m.label}</div>
+                                                    <div className="text-xs text-subtext mt-0.5">{m.short} • Coef {m.coef21}</div>
                                                 </div>
-                                            ))}
-                                        </div>
+                                                <div className={`font-mono font-bold text-lg ${getGradeColor(calcAvg(s2Grades[m.id]))}`}>{calcAvg(s2Grades[m.id]) || "—"}</div>
+                                            </div>
+                                        ))}
                                     </div>
+                                </div>
 
-                                    {/* UE 22 */}
-                                    <div>
-                                        <div className="flex justify-between items-center bg-purple-900/20 p-2 rounded-lg mb-2 border border-purple-500/20">
-                                            <span className="text-xs font-bold text-purple-400 uppercase ml-2">UE22 - Vérifier</span>
-                                            <span className="font-mono font-bold text-white mr-2">{stats.ue22 || '--'}</span>
-                                        </div>
-                                        <div className="space-y-2">
-                                            {MODULES_CONFIG_S2.filter(m => m.coef22 > 0).map(m => (
-                                                <div key={m.id} onClick={()=>setSelectedModule(m)} className="bg-card p-3 rounded-xl flex justify-between items-center active:scale-95 transition-transform border border-white/5">
-                                                    <div>
-                                                        <div className="font-bold text-sm">{m.label}</div>
-                                                        <div className="text-[10px] text-subtext">{m.short} • Coef {m.coef22}</div>
-                                                    </div>
-                                                    <div className={`font-mono font-bold ${getGradeColor(calcAvg(s2Grades[m.id]))}`}>{calcAvg(s2Grades[m.id]) || "—"}</div>
+                                {/* UE 22 BLOCK */}
+                                <div>
+                                    <div className="flex justify-between items-center bg-ue22/20 p-3 rounded-t-2xl border-t border-x border-ue22/30">
+                                        <span className="text-sm font-bold text-ue22 uppercase">UE22 - Vérifier</span>
+                                        <span className="font-mono font-bold text-white bg-black/40 px-2 py-1 rounded text-sm">{stats.ue22 || '--'}</span>
+                                    </div>
+                                    <div className="bg-card rounded-b-2xl border-b border-x border-white/5 overflow-hidden">
+                                        {MODULES_CONFIG_S2.filter(m => m.coef22 > 0).map((m, i) => (
+                                            <div key={m.id} onClick={()=>setSelectedModule(m)} className={`p-4 flex justify-between items-center active:bg-white/5 transition-colors ${i !== 0 ? 'border-t border-white/5' : ''}`}>
+                                                <div>
+                                                    <div className="font-bold text-white text-base">{m.label}</div>
+                                                    <div className="text-xs text-subtext mt-0.5">{m.short} • Coef {m.coef22}</div>
                                                 </div>
-                                            ))}
-                                        </div>
+                                                <div className={`font-mono font-bold text-lg ${getGradeColor(calcAvg(s2Grades[m.id]))}`}>{calcAvg(s2Grades[m.id]) || "—"}</div>
+                                            </div>
+                                        ))}
                                     </div>
                                 </div>
                             </div>
                         )}
 
-                        {/* AGENDA VIEW */}
                         {view === 'AGENDA' && (
                             <div className="space-y-4 animate-in fade-in duration-300">
                                 <h2 className="text-2xl font-bold mb-4">Agenda</h2>
-                                {events.length === 0 ? <p className="text-center text-subtext text-sm mt-10">Aucun événement trouvé ou lien ADE non configuré.</p> : 
-                                    events.slice(0, 20).map((e, i) => {
-                                        const dateStr = e.start.toLocaleDateString('fr-FR', {weekday: 'long', day: 'numeric', month: 'short'});
-                                        const prevDate = i > 0 ? events[i-1].start.toLocaleDateString('fr-FR', {weekday: 'long', day: 'numeric', month: 'short'}) : '';
-                                        const isNewDay = dateStr !== prevDate;
-                                        
-                                        return (
-                                            <div key={i}>
-                                                {isNewDay && <div className="sticky top-0 bg-bg/95 backdrop-blur py-2 text-xs font-bold text-primary uppercase tracking-wider z-10">{dateStr}</div>}
-                                                <div className="bg-card p-3 rounded-xl border border-white/5 mb-2 flex gap-3">
-                                                    <div className="flex flex-col items-center justify-center min-w-[50px] border-r border-white/10 pr-3">
-                                                        <span className="font-bold text-sm">{e.start.getHours()}h{e.start.getMinutes()||'00'}</span>
-                                                        <span className="text-[10px] text-subtext">{e.end.getHours()}h{e.end.getMinutes()||'00'}</span>
-                                                    </div>
-                                                    <div className="overflow-hidden">
-                                                        <div className="font-bold text-sm truncate">{e.summary}</div>
-                                                        <div className="text-xs text-subtext truncate flex gap-1 items-center"><Icon name="map-pin" size={10}/> {e.location}</div>
-                                                    </div>
+                                {events.slice(0, 20).map((e, i) => {
+                                    const dateStr = e.start.toLocaleDateString('fr-FR', {weekday: 'long', day: 'numeric', month: 'short'});
+                                    const prevDate = i > 0 ? events[i-1].start.toLocaleDateString('fr-FR', {weekday: 'long', day: 'numeric', month: 'short'}) : '';
+                                    const isNewDay = dateStr !== prevDate;
+                                    return (
+                                        <div key={i}>
+                                            {isNewDay && <div className="sticky top-0 bg-bg/95 backdrop-blur py-2 text-xs font-bold text-primary uppercase tracking-wider z-10">{dateStr}</div>}
+                                            <div className="bg-card p-3 rounded-xl border border-white/5 mb-2 flex gap-3">
+                                                <div className="flex flex-col items-center justify-center min-w-[50px] border-r border-white/10 pr-3">
+                                                    <span className="font-bold text-sm">{e.start.getHours()}h{e.start.getMinutes()||'00'}</span>
+                                                    <span className="text-[10px] text-subtext">{e.end.getHours()}h{e.end.getMinutes()||'00'}</span>
                                                 </div>
+                                                <div className="overflow-hidden"><div className="font-bold text-sm truncate">{e.summary}</div><div className="text-xs text-subtext truncate flex gap-1 items-center"><Icon name="map-pin" size={10}/> {e.location}</div></div>
                                             </div>
-                                        );
-                                    })
-                                }
+                                        </div>
+                                    );
+                                })}
+                                {events.length === 0 && <div className="text-center text-subtext py-10">Aucun cours trouvé.</div>}
                             </div>
                         )}
 
-                        {/* LIFE VIEW */}
                         {view === 'LIFE' && (
                             <div className="space-y-4 animate-in fade-in duration-300">
                                 <h2 className="text-2xl font-bold mb-4">Vie Étudiante</h2>
-                                <CrousMenu />
-                                <MetroStatus />
-                                
-                                {/* BDE / URGENCE CARD */}
+                                <CrousMenu /><MetroStatus />
                                 <div className="bg-gradient-to-br from-indigo-900/40 to-purple-900/40 border border-white/10 p-4 rounded-2xl">
                                     <h3 className="font-bold text-white mb-3 flex items-center gap-2"><Icon name="heart-pulse" size={18} className="text-pink-500"/> Urgences & BDE</h3>
                                     <div className="space-y-2 text-sm">
-                                        <div className="flex justify-between items-center bg-black/20 p-2 rounded-lg">
-                                            <span>🏥 Infirmerie IUT</span>
-                                            <a href="tel:0472448000" className="text-primary font-bold">Appeler</a>
-                                        </div>
-                                        <div className="flex justify-between items-center bg-black/20 p-2 rounded-lg">
-                                            <span>🎉 Soirée Intégration</span>
-                                            <span className="text-subtext text-xs">12 Mars</span>
-                                        </div>
+                                        <div className="flex justify-between items-center bg-black/20 p-2 rounded-lg"><span>🏥 Infirmerie IUT</span><a href="tel:0472448000" className="text-primary font-bold">Appeler</a></div>
+                                        <div className="flex justify-between items-center bg-black/20 p-2 rounded-lg"><span>🎉 Soirée Intégration</span><span className="text-subtext text-xs">12 Mars</span></div>
                                     </div>
                                 </div>
                             </div>
                         )}
 
-                        {/* SETTINGS VIEW */}
                         {view === 'SETTINGS' && (
                             <div className="space-y-4 animate-in fade-in duration-300">
                                 <h2 className="text-2xl font-bold mb-4">Compte</h2>
-                                
                                 <div className="bg-card p-4 rounded-2xl border border-white/5 space-y-4">
-                                    <div>
-                                        <label className="text-xs font-bold text-subtext uppercase block mb-2">Lien ADE (ICS)</label>
-                                        <input type="text" value={adeUrl} onChange={e=>setAdeUrl(e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-xs text-subtext break-all" />
-                                        <p className="text-[10px] text-subtext mt-1">Copiez le lien "Export iCal" depuis l'ENT Lyon 1.</p>
-                                    </div>
+                                    <div><label className="text-xs font-bold text-subtext uppercase block mb-2">Lien ADE (ICS)</label><input type="text" value={adeUrl} onChange={e=>setAdeUrl(e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-xs text-subtext break-all" /><p className="text-[10px] text-subtext mt-1">Lien export iCal de l'ENT.</p></div>
                                 </div>
-
-                                <div className="bg-card p-4 rounded-2xl border border-white/5">
-                                    <h3 className="font-bold text-sm mb-3">Mes Données</h3>
-                                    <button onClick={() => { localStorage.clear(); window.location.reload(); }} className="w-full bg-danger/10 text-danger border border-danger/20 py-3 rounded-xl font-bold text-sm">Réinitialiser l'application</button>
-                                </div>
+                                <div className="bg-card p-4 rounded-2xl border border-white/5"><h3 className="font-bold text-sm mb-3">Mes Données</h3><button onClick={() => { localStorage.clear(); window.location.reload(); }} className="w-full bg-danger/10 text-danger border border-danger/20 py-3 rounded-xl font-bold text-sm">Réinitialiser l'application</button></div>
                             </div>
                         )}
-
                     </div>
 
                     <BottomNav active={view} setView={setView} />
