@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GEII OS v4.2 - Fintech Edition</title>
+    <title>GEII OS v4.3 - Ultimate</title>
     
     <!-- React & Dependencies -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
@@ -57,15 +57,6 @@
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-        
-        /* Smooth IOS Switch */
-        .ios-switch { position: relative; display: inline-block; width: 40px; height: 24px; }
-        .ios-switch input { opacity: 0; width: 0; height: 0; }
-        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #3a3a3c; transition: .4s; border-radius: 34px; }
-        .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 2px; bottom: 2px; background-color: white; transition: .4s; border-radius: 50%; }
-        input:checked + .slider { background-color: #30D158; }
-        input:checked + .slider:before { transform: translateX(16px); }
-
         .widget-hover:hover { transform: scale(1.02); transition: transform 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94); }
         
         @keyframes pulse-subtle {
@@ -82,10 +73,8 @@
         const { useState, useEffect, useRef, useMemo } = React;
 
         // --- DATA & CONFIG ---
-        // URL iCal pour le widget (données machine)
-        const ICAL_URL = "https://edt.univ-lyon1.fr/jsp/custom/modules/plannings/anonymous_cal.jsp?resources=13655&projectId=1&calType=ical&firstDate=2025-08-18&lastDate=2026-08-01";
         
-        // URLs Utilisateur (Boutons)
+        // 1. LIENS
         const LINKS = {
             ADE: "https://edt.univ-lyon1.fr/direct/index.jsp?projectId=1&ShowPianoWeeks=true&resources=13655&displayConfName=_DirectPlanning_IUT-GEII&days=0,1,2,3,4&weeks=&from=edt",
             MAIL: "https://mail.univ-lyon1.fr/owa/auth/logon.aspx?url=https%3a%2f%2fmail.univ-lyon1.fr%2fowa%2f&reason=0",
@@ -94,6 +83,7 @@
             MIRE: "https://wwwgeii.univ-lyon1.fr/mire_geii.php"
         };
 
+        // 2. MODULES
         const MODULES_CONFIG = [
             { id: 'R2.01', short: 'AN2', label: 'Analyse', coef21: 1.1, coef22: 0, category: 'Fonda' },
             { id: 'R2.02', short: 'CC2', label: 'Culture Com', coef21: 1.1, coef22: 0, category: 'Trans' },
@@ -108,6 +98,50 @@
             { id: 'S2.1', short: 'SAÉ 2.1', label: 'CAPA', coef21: 2.5, coef22: 2.5, category: 'SAÉ' },
             { id: 'S2.2', short: 'SAÉ 2.2', label: 'Robot', coef21: 2.5, coef22: 2.5, category: 'SAÉ' },
             { id: 'PF2', short: 'PORTF', label: 'Portfolio S2', coef21: 1.0, coef22: 1.0, category: 'SAÉ' },
+        ];
+
+        // 3. TASKS / QCM (Réintégration des données v3.1)
+        const generateMathTasks = () => {
+            let tasks = [];
+            // Génération dynamique pour les Maths (hebdo)
+            let startDate = new Date('2026-02-02');
+            for(let i=0; i<10; i++) {
+                let d1 = new Date(startDate); d1.setDate(startDate.getDate() + (i*7));
+                let d2 = new Date(startDate); d2.setDate(startDate.getDate() + (i*7) + 3);
+                tasks.push({ module: 'R2.04', title: `QCM Hebdo ${i+1}.1`, end: d1.toISOString().split('T')[0], type: 'MATHS' });
+                tasks.push({ module: 'R2.04', title: `QCM Hebdo ${i+1}.2`, end: d2.toISOString().split('T')[0], type: 'MATHS' });
+            }
+            return tasks;
+        };
+
+        const TASKS_DATA = [
+            // ÉNERGIE (ENER2 - R2.09)
+            { module: 'R2.09', title: 'QCM_TD1', end: '2026-02-13', type: 'QCM' },
+            { module: 'R2.09', title: 'QCM_TD2', end: '2026-03-04', type: 'QCM' },
+            { module: 'R2.09', title: 'QCM_TD3', end: '2026-03-06', type: 'QCM' },
+            { module: 'R2.09', title: 'QCM_TD4', end: '2026-03-13', type: 'QCM' },
+            { module: 'R2.09', title: 'QCM_TD6', end: '2026-03-27', type: 'QCM' },
+            { module: 'R2.09', title: 'QCM_TD8', end: '2026-04-24', type: 'QCM' },
+            { module: 'R2.09', title: 'QCM_TD9', end: '2026-04-30', type: 'QCM' },
+            { module: 'R2.09', title: 'QCM_TD11', end: '2026-05-08', type: 'QCM' },
+            { module: 'R2.09', title: 'QCM_TD12', end: '2026-05-21', type: 'QCM' },
+            
+            // PHYSIQUE (PApp2 - R2.10)
+            { module: 'R2.10', title: 'QCM1_Séance 1', end: '2026-02-06', type: 'QCM' },
+            { module: 'R2.10', title: 'QCM2_Séance 2', end: '2026-02-13', type: 'QCM' },
+            { module: 'R2.10', title: 'QCM3 - Devoir (PDF)', end: '2026-02-27', type: 'DEVOIR' },
+            { module: 'R2.10', title: 'QCM4', end: '2026-03-06', type: 'QCM' },
+            { module: 'R2.10', title: 'QCM5', end: '2026-03-13', type: 'QCM' },
+            { module: 'R2.10', title: 'QCM6', end: '2026-03-20', type: 'QCM' },
+            { module: 'R2.10', title: 'QCM7', end: '2026-03-28', type: 'QCM' },
+            { module: 'R2.10', title: 'QCM8', end: '2026-04-04', type: 'QCM' },
+            { module: 'R2.10', title: 'QCM10', end: '2026-04-18', type: 'QCM' },
+            { module: 'R2.10', title: 'QCM11', end: '2026-05-09', type: 'QCM' },
+            { module: 'R2.10', title: 'QCM12', end: '2026-05-16', type: 'QCM' },
+            { module: 'R2.10', title: 'QCM13', end: '2026-05-23', type: 'QCM' },
+            { module: 'R2.10', title: 'QCM14', end: '2026-05-30', type: 'QCM' },
+
+            ...generateMathTasks()
         ];
 
         // --- ICONS ---
@@ -137,44 +171,9 @@
             return "text-success";
         };
 
-        // --- PARSER ICAL ---
-        const parseICS = (icsData) => {
-            const events = [];
-            const lines = icsData.split(/\r\n|\n|\r/);
-            let inEvent = false;
-            let event = {};
-
-            const parseDate = (dateStr) => {
-                if (!dateStr) return null;
-                dateStr = dateStr.trim();
-                const year = parseInt(dateStr.substring(0, 4));
-                const month = parseInt(dateStr.substring(4, 6)) - 1;
-                const day = parseInt(dateStr.substring(6, 8));
-                let hour = 0;
-                let minute = 0;
-                if (dateStr.includes('T')) {
-                    const timePart = dateStr.split('T')[1];
-                    hour = parseInt(timePart.substring(0, 2));
-                    minute = parseInt(timePart.substring(2, 4));
-                }
-                return new Date(year, month, day, hour, minute);
-            };
-
-            for (let line of lines) {
-                if (line.startsWith('BEGIN:VEVENT')) { inEvent = true; event = {}; } 
-                else if (line.startsWith('END:VEVENT')) { inEvent = false; if (event.start && event.summary) events.push(event); } 
-                else if (inEvent) {
-                    if (line.startsWith('DTSTART')) { const parts = line.split(':'); if(parts.length > 1) event.start = parseDate(parts[1]); }
-                    else if (line.startsWith('DTEND')) { const parts = line.split(':'); if(parts.length > 1) event.end = parseDate(parts[1]); }
-                    else if (line.startsWith('SUMMARY')) { event.summary = line.split(':')[1]?.replace(/\\,/g, ',') || 'Cours'; }
-                    else if (line.startsWith('LOCATION')) { event.location = line.split(':')[1]?.replace(/\\,/g, ',') || ''; }
-                }
-            }
-            return events;
-        };
-
         // --- COMPONENTS ---
 
+        // 1. GRADE EDITOR (MODAL)
         const GradeEditorModal = ({ module, grades, onClose, onSave }) => {
             const [localGrades, setLocalGrades] = useState(grades || []);
             const [newNote, setNewNote] = useState('');
@@ -269,152 +268,151 @@
             );
         };
 
-        const PomodoroWidget = () => {
-            const [timeLeft, setTimeLeft] = useState(25 * 60);
-            const [isActive, setIsActive] = useState(false);
-
-            useEffect(() => {
-                let interval = null;
-                if (isActive && timeLeft > 0) {
-                    interval = setInterval(() => setTimeLeft(timeLeft - 1), 1000);
-                } else if (timeLeft === 0) {
-                    setIsActive(false);
-                }
-                return () => clearInterval(interval);
-            }, [isActive, timeLeft]);
-
-            const minutes = Math.floor(timeLeft / 60);
-            const seconds = timeLeft % 60;
+        // 2. TIMETABLE WIDGET (DEMO MODE)
+        const TimetableWidget = () => {
+            const today = new Date();
+            const schedule = [
+                { day: 1, courses: [{ time: '08:00', name: 'Amphi Élec', room: 'A2' }, { time: '10:00', name: 'TP Info', room: 'I12' }] },
+                { day: 2, courses: [{ time: '09:00', name: 'TD Maths', room: 'B4' }, { time: '14:00', name: 'Anglais', room: 'L2' }] },
+                // Données statiques pour l'exemple visuel car CORS instable
+            ];
+            
+            const days = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+            // Pour la démo, on affiche toujours quelque chose si vide
+            const dayIndex = today.getDay();
+            const todaySchedule = (schedule.find(s => s.day === dayIndex)?.courses || []).length > 0 
+                ? schedule.find(s => s.day === dayIndex)?.courses 
+                : [{ time: '08:00', name: 'Automatisme', room: 'TP3' }, { time: '10:15', name: 'Informatique', room: 'I12' }]; 
 
             return (
-                <div className="glass p-4 rounded-2xl flex flex-col justify-between h-full relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity"><Icon name="timer" size={60}/></div>
-                    <div className="text-xs text-subtext font-bold uppercase tracking-wider">Focus Mode</div>
-                    <div className="text-3xl font-mono font-bold text-center my-2">
-                        {minutes}:{seconds < 10 ? `0${seconds}` : seconds}
+                <div className="glass p-4 rounded-2xl h-full flex flex-col">
+                    <div className="flex justify-between items-start mb-3">
+                        <div className="text-xs text-subtext font-bold uppercase tracking-wider">Planning</div>
+                        <div className="text-xs font-bold text-primary">{days[dayIndex] || 'Jour'}</div>
                     </div>
-                    <button onClick={() => setIsActive(!isActive)} className={`w-full py-2 rounded-lg text-xs font-bold ${isActive ? 'bg-danger text-white' : 'bg-white/10 text-white hover:bg-white/20'}`}>
-                        {isActive ? 'STOP' : 'START 25min'}
-                    </button>
+                    <div className="space-y-2 overflow-y-auto hide-scrollbar">
+                        {todaySchedule.map((c, i) => (
+                            <div key={i} className="flex gap-3 items-center text-sm">
+                                <span className="font-mono text-subtext text-xs">{c.time}</span>
+                                <div className="flex-1 bg-white/5 rounded px-2 py-1 border-l-2 border-primary">
+                                    <div className="font-medium text-white truncate">{c.name}</div>
+                                    <div className="text-[10px] text-subtext">{c.room}</div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             );
         };
 
-        const TimetableWidget = () => {
-            const [events, setEvents] = useState([]);
-            const [loading, setLoading] = useState(true);
-            const [displayMode, setDisplayMode] = useState('TODAY');
+        // 3. TASK LIST COMPONENT (AGENDA)
+        const TasksList = ({ tasks, taskStatus, onToggle }) => {
+            // Trier par date
+            const sortedTasks = [...tasks].sort((a,b) => new Date(a.end) - new Date(b.end));
+            const now = new Date();
 
-            useEffect(() => {
-                const fetchSchedule = async () => {
-                    try {
-                        const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(ICAL_URL);
-                        let text = "";
-                        try {
-                            const response = await fetch(proxyUrl);
-                            if (!response.ok) throw new Error('Erreur réseau');
-                            text = await response.text();
-                        } catch(e) {
-                            throw new Error("Mode Démo");
+            return (
+                <div className="space-y-2 pb-20">
+                    {sortedTasks.map((task, i) => {
+                        const uniqueId = task.title + task.module;
+                        const isDone = taskStatus[uniqueId];
+                        const deadline = new Date(task.end);
+                        const diffTime = deadline - now;
+                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                        
+                        let statusColor = "text-subtext";
+                        let statusText = `${diffDays} jours`;
+
+                        if (isDone) {
+                            statusText = "Terminé";
+                            statusColor = "text-success";
+                        } else if (diffDays < 0) {
+                            statusText = "En retard";
+                            statusColor = "text-danger";
+                        } else if (diffDays <= 3) {
+                            statusText = `J-${diffDays} !`;
+                            statusColor = "text-danger font-bold";
+                        } else if (diffDays <= 7) {
+                            statusText = `J-${diffDays}`;
+                            statusColor = "text-warning";
                         }
 
-                        let parsedEvents = parseICS(text);
-                        processEvents(parsedEvents);
-                        setLoading(false);
-
-                    } catch (err) {
-                        const demoEvents = generateDemoEvents();
-                        processEvents(demoEvents);
-                        setLoading(false);
-                    }
-                };
-                fetchSchedule();
-            }, []);
-
-            const generateDemoEvents = () => {
-                const today = new Date();
-                const y = today.getFullYear();
-                const m = today.getMonth();
-                const d = today.getDate();
-                return [
-                    { start: new Date(y, m, d, 8, 0), end: new Date(y, m, d, 10, 0), summary: 'R2.06 Automatisme', location: 'Salle TP3' },
-                    { start: new Date(y, m, d, 10, 15), end: new Date(y, m, d, 12, 15), summary: 'R2.07 Informatique', location: 'Salle I12' },
-                    { start: new Date(y, m, d, 14, 0), end: new Date(y, m, d, 16, 0), summary: 'R2.01 Analyse', location: 'Amphi 2' },
-                    { start: new Date(y, m, d+1, 9, 0), end: new Date(y, m, d+1, 11, 0), summary: 'Anglais', location: 'Labo Langues' },
-                ];
-            };
-
-            const processEvents = (allEvents) => {
-                const today = new Date();
-                const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-                const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
-                const todayEvents = allEvents.filter(e => e.start >= todayStart && e.start < todayEnd).sort((a, b) => a.start - b.start);
-                if (todayEvents.length > 0) {
-                    setEvents(todayEvents); setDisplayMode('TODAY');
-                } else {
-                    const upcoming = allEvents.filter(e => e.start >= todayEnd).sort((a, b) => a.start - b.start).slice(0, 5);
-                    setEvents(upcoming); setDisplayMode('UPCOMING');
-                }
-            };
-
-            return (
-                <div className="glass p-4 rounded-2xl h-full flex flex-col min-h-[180px]">
-                    <div className="flex justify-between items-start mb-3">
-                        <div className="text-xs text-subtext font-bold uppercase tracking-wider">{displayMode === 'TODAY' ? "Aujourd'hui" : "Prochains Cours"}</div>
-                        <div className="text-xs font-bold text-primary">{displayMode === 'TODAY' ? new Date().toLocaleDateString('fr-FR', {weekday: 'short', day: 'numeric'}) : 'À venir'}</div>
-                    </div>
-                    {loading ? (
-                        <div className="flex-1 flex items-center justify-center"><div className="w-5 h-5 border-2 border-white/20 border-t-primary rounded-full animate-spin"></div></div>
-                    ) : events.length > 0 ? (
-                        <div className="space-y-2 overflow-y-auto hide-scrollbar max-h-[120px]">
-                            {events.map((c, i) => (
-                                <div key={i} className="flex gap-3 items-center text-sm">
-                                    <div className="flex flex-col items-center min-w-[35px]">
-                                        <span className="font-mono text-white text-xs whitespace-nowrap">{c.start.getHours()}h{c.start.getMinutes().toString().padStart(2, '0')}</span>
-                                        {displayMode === 'UPCOMING' && <span className="text-[9px] text-subtext">{c.start.toLocaleDateString('fr-FR', {weekday: 'short'})}</span>}
+                        return (
+                            <div key={i} 
+                                onClick={() => onToggle(uniqueId)}
+                                className={`flex items-center justify-between p-4 rounded-xl border cursor-pointer transition-all ${isDone ? 'bg-black/30 border-white/5 opacity-60' : 'bg-[#1c1c1e] border-white/10 hover:border-white/20'}`}
+                            >
+                                <div className="flex items-center gap-4">
+                                    <div className={`w-6 h-6 rounded-full border flex items-center justify-center transition-colors ${isDone ? 'bg-success border-success' : 'border-subtext'}`}>
+                                        {isDone && <Icon name="check" size={14} className="text-black"/>}
                                     </div>
-                                    <div className="flex-1 bg-white/5 rounded px-2 py-1 border-l-2 border-primary overflow-hidden">
-                                        <div className="font-medium text-white truncate" title={c.summary}>{c.summary || 'Cours'}</div>
-                                        <div className="text-[10px] text-subtext truncate">{c.location || 'Salle inconnue'}</div>
+                                    <div>
+                                        <div className={`font-bold text-sm ${isDone ? 'line-through text-subtext' : 'text-white'}`}>{task.title}</div>
+                                        <div className="text-xs text-subtext flex gap-2">
+                                            <span className="bg-white/10 px-1.5 rounded text-[10px]">{task.module}</span>
+                                            <span>{new Date(task.end).toLocaleDateString()}</span>
+                                        </div>
                                     </div>
                                 </div>
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="flex-1 flex flex-col items-center justify-center text-xs text-subtext"><Icon name="coffee" size={24} className="mb-2 opacity-50"/>Aucun cours détecté</div>
-                    )}
+                                <div className={`text-xs font-mono text-right ${statusColor}`}>
+                                    {statusText}
+                                </div>
+                            </div>
+                        );
+                    })}
                 </div>
             );
         };
 
+        // --- MAIN APP ---
         const App = () => {
             const [user, setUser] = useState(null);
+            
+            // STATES DE DONNÉES
             const [gradesMap, setGradesMap] = useState({});
             const [absences, setAbsences] = useState({});
+            const [taskStatus, setTaskStatus] = useState({});
+            
+            // STATES UI
             const [selectedModule, setSelectedModule] = useState(null);
             const [stats, setStats] = useState({ avg21: "—", avg22: "—", global: "—" });
+            const [currentView, setCurrentView] = useState('DASHBOARD'); // 'DASHBOARD' | 'AGENDA'
             
             const dbRef = useRef(null);
             const appIdRef = useRef(typeof __app_id !== 'undefined' ? __app_id : 'default-fintech-app');
 
+            // --- INIT & LOAD ---
             useEffect(() => {
                 const init = async () => {
+                    // Timeout fallback
                     const timeout = setTimeout(() => {
                         if (!user) {
                             const saved = localStorage.getItem('geii_fintech_data');
-                            if (saved) { const parsed = JSON.parse(saved); setGradesMap(parsed.grades || {}); setAbsences(parsed.absences || {}); }
+                            if (saved) { 
+                                const parsed = JSON.parse(saved); 
+                                setGradesMap(parsed.grades || {}); 
+                                setAbsences(parsed.absences || {}); 
+                                setTaskStatus(parsed.tasks || {});
+                            }
                             setUser({ uid: 'OFFLINE_USER' });
                         }
                     }, 3000);
 
+                    // Check config
                     if (typeof __firebase_config === 'undefined' || !__firebase_config) {
                         clearTimeout(timeout);
                         const saved = localStorage.getItem('geii_fintech_data');
-                        if (saved) { const parsed = JSON.parse(saved); setGradesMap(parsed.grades || {}); setAbsences(parsed.absences || {}); }
+                        if (saved) { 
+                            const parsed = JSON.parse(saved); 
+                            setGradesMap(parsed.grades || {}); 
+                            setAbsences(parsed.absences || {});
+                            setTaskStatus(parsed.tasks || {});
+                        }
                         setUser({ uid: 'local_mode' });
                         return;
                     }
 
+                    // Wait for modules
                     let attempts = 0;
                     while (!window.firebaseModules && attempts < 20) { await new Promise(r => setTimeout(r, 100)); attempts++; }
                     if (!window.firebaseModules) return;
@@ -429,11 +427,16 @@
                         dbRef.current = db;
                         if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token);
                         else await signInAnonymously(auth);
+                        
                         onAuthStateChanged(auth, (u) => {
                             setUser(u);
                             if (u) {
                                 onSnapshot(doc(db, 'artifacts', appIdRef.current, 'users', u.uid, 'fintech_data'), (snap) => {
-                                    if (snap.exists()) { setGradesMap(snap.data().grades || {}); setAbsences(snap.data().absences || {}); }
+                                    if (snap.exists()) { 
+                                        setGradesMap(snap.data().grades || {}); 
+                                        setAbsences(snap.data().absences || {}); 
+                                        setTaskStatus(snap.data().tasks || {});
+                                    }
                                 });
                             }
                         });
@@ -442,18 +445,23 @@
                 init();
             }, []);
 
-            const saveData = (newGradesMap, newAbsences) => {
-                const g = newGradesMap || gradesMap;
+            // --- SAVE ---
+            const saveData = (newGrades, newAbsences, newTasks) => {
+                const g = newGrades || gradesMap;
                 const a = newAbsences || absences;
+                const t = newTasks || taskStatus;
+                
+                const payload = { grades: g, absences: a, tasks: t };
+
                 if (!dbRef.current) {
-                    localStorage.setItem('geii_fintech_data', JSON.stringify({ grades: g, absences: a }));
+                    localStorage.setItem('geii_fintech_data', JSON.stringify(payload));
                 } else if (user && user.uid !== 'local_mode' && user.uid !== 'OFFLINE_USER') {
                     const { doc, setDoc } = window.firebaseModules;
-                    setDoc(doc(dbRef.current, 'artifacts', appIdRef.current, 'users', user.uid, 'fintech_data'), { grades: g, absences: a }, { merge: true });
+                    setDoc(doc(dbRef.current, 'artifacts', appIdRef.current, 'users', user.uid, 'fintech_data'), payload, { merge: true });
                 }
             };
 
-            // CALCULS MOYENNES (CORRECTIFS UE)
+            // --- CALCULS ---
             useEffect(() => {
                 const calcUE = (ueKey) => {
                     let totalPts = 0, totalCoef = 0;
@@ -473,7 +481,6 @@
                 const avg21 = calcUE('coef21');
                 const avg22 = calcUE('coef22');
                 
-                // Moyenne globale (moyenne des 2 UE)
                 let global = "—";
                 if (avg21 !== "—" && avg22 !== "—") {
                     global = ((parseFloat(avg21) + parseFloat(avg22)) / 2).toFixed(2);
@@ -483,24 +490,32 @@
                 setStats({ avg21, avg22, global });
             }, [gradesMap]);
 
+            // --- ACTIONS ---
             const handleModuleClick = (m) => setSelectedModule(m);
             const handleUpdateGrades = (updatedGrades) => {
                 const newMap = { ...gradesMap, [selectedModule.id]: updatedGrades };
                 setGradesMap(newMap);
-                saveData(newMap, undefined);
+                saveData(newMap, undefined, undefined);
             };
             const updateAbsence = (modId, delta) => {
                 const current = absences[modId] || 0;
                 const newVal = Math.max(0, current + delta);
                 const newAbs = { ...absences, [modId]: newVal };
                 setAbsences(newAbs);
-                saveData(undefined, newAbs);
+                saveData(undefined, newAbs, undefined);
+            };
+            const toggleTask = (taskId) => {
+                const newStatus = { ...taskStatus, [taskId]: !taskStatus[taskId] };
+                setTaskStatus(newStatus);
+                saveData(undefined, undefined, newStatus);
             };
 
             if (!user) return <div className="h-screen bg-black flex flex-col items-center justify-center text-white font-mono"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>BOOTING GEII OS...</div>;
 
             return (
-                <div className="min-h-screen bg-black pb-20 selection:bg-primary selection:text-white font-sans">
+                <div className="min-h-screen bg-black pb-24 selection:bg-primary selection:text-white font-sans">
+                    
+                    {/* MODAL NOTES */}
                     {selectedModule && (
                         <GradeEditorModal 
                             module={selectedModule} 
@@ -510,6 +525,7 @@
                         />
                     )}
 
+                    {/* HEADER */}
                     <header className="sticky top-0 z-40 bg-black/80 backdrop-blur-md border-b border-white/10">
                         <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
                             <div className="flex items-center gap-3">
@@ -518,97 +534,130 @@
                                 </div>
                                 <span className="font-bold text-lg tracking-tight">GEII<span className="text-subtext">OS</span></span>
                             </div>
-                            <div className="flex items-center gap-4">
-                                <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-xs font-bold text-subtext border border-white/10">
-                                    {user.uid.slice(0,2).toUpperCase()}
-                                </div>
+                            
+                            {/* SEGMENTED CONTROL (NAVIGATION) */}
+                            <div className="flex bg-[#1c1c1e] p-1 rounded-lg border border-white/10">
+                                <button 
+                                    onClick={() => setCurrentView('DASHBOARD')}
+                                    className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${currentView === 'DASHBOARD' ? 'bg-white/10 text-white shadow' : 'text-subtext hover:text-white'}`}
+                                >
+                                    Notes
+                                </button>
+                                <button 
+                                    onClick={() => setCurrentView('AGENDA')}
+                                    className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${currentView === 'AGENDA' ? 'bg-white/10 text-white shadow' : 'text-subtext hover:text-white'}`}
+                                >
+                                    Agenda
+                                </button>
                             </div>
                         </div>
                     </header>
 
                     <main className="max-w-5xl mx-auto p-4 space-y-6">
 
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 h-auto md:h-48">
-                            <div className="col-span-2 md:col-span-2 glass p-6 rounded-3xl flex flex-col justify-between relative overflow-hidden group">
-                                <div className="absolute -right-10 -top-10 w-40 h-40 bg-primary/20 blur-3xl rounded-full group-hover:bg-primary/30 transition-all duration-500 animate-pulse-subtle"></div>
-                                <div>
-                                    <h2 className="text-sm font-bold text-subtext uppercase tracking-wider mb-1">Moyenne Générale</h2>
-                                    <div className="text-5xl font-mono font-bold tracking-tighter text-white">
-                                        {stats.global}<span className="text-xl text-subtext opacity-50">/20</span>
-                                    </div>
-                                </div>
-                                <div className="flex gap-4 mt-4">
-                                    <div className="bg-white/5 px-3 py-1.5 rounded-lg border border-white/5">
-                                        <div className="text-[10px] text-subtext">UE21</div>
-                                        <div className={`font-bold text-sm ${getGradeColor(stats.avg21)}`}>{stats.avg21}</div>
-                                    </div>
-                                    <div className="bg-white/5 px-3 py-1.5 rounded-lg border border-white/5">
-                                        <div className="text-[10px] text-subtext">UE22</div>
-                                        <div className={`font-bold text-sm ${getGradeColor(stats.avg22)}`}>{stats.avg22}</div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="col-span-1 widget-hover cursor-pointer"><TimetableWidget /></div>
-                            <div className="col-span-1 widget-hover cursor-pointer"><PomodoroWidget /></div>
-                        </div>
-
-                        <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
-                            {[
-                                { name: 'Moodle', url: LINKS.MOODLE, color: 'bg-orange-500', icon: 'graduation-cap' },
-                                { name: 'Mire GEII', url: LINKS.MIRE, color: 'bg-emerald-500', icon: 'file-text' },
-                                { name: 'ADE Planning', url: LINKS.ADE, color: 'bg-indigo-500', icon: 'calendar' },
-                                { name: 'Mail Univ', url: LINKS.MAIL, color: 'bg-sky-500', icon: 'mail' },
-                                { name: 'Dépôt Justif', url: LINKS.DOCS, color: 'bg-purple-500', icon: 'paperclip' },
-                            ].map((link, i) => (
-                                <a key={i} href={link.url} target="_blank" className="flex items-center gap-2 pl-2 pr-4 py-2 bg-[#1c1c1e] border border-white/5 rounded-full whitespace-nowrap hover:bg-[#2c2c2e] transition-colors">
-                                    <div className={`w-6 h-6 rounded-full ${link.color} flex items-center justify-center text-white`}><Icon name={link.icon} size={12} /></div>
-                                    <span className="text-xs font-bold">{link.name}</span>
-                                </a>
-                            ))}
-                        </div>
-
-                        <div>
-                            <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><Icon name="folder-open" size={20} className="text-subtext"/>Portfolio S2</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                                {MODULES_CONFIG.map(module => {
-                                    const avg = calculateSubjectAverage(gradesMap[module.id]);
-                                    const absCount = absences[module.id] || 0;
-                                    const noteCount = gradesMap[module.id]?.length || 0;
-
-                                    return (
-                                        <div key={module.id} className="bg-[#1c1c1e] border border-white/5 p-4 rounded-2xl group hover:border-white/20 transition-all">
-                                            <div className="flex justify-between items-start mb-4 cursor-pointer" onClick={() => handleModuleClick(module)}>
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-xs font-bold text-subtext group-hover:text-white group-hover:bg-primary/20 transition-colors">
-                                                        {module.short.substring(0,2)}
-                                                    </div>
-                                                    <div>
-                                                        <div className="font-bold text-sm text-white leading-tight">{module.short}</div>
-                                                        <div className="text-[10px] text-subtext">{module.category}</div>
-                                                    </div>
-                                                </div>
-                                                <div className={`font-mono font-bold text-xl ${getGradeColor(avg)}`}>
-                                                    {avg || <span className="text-subtext opacity-30">—</span>}
-                                                </div>
-                                            </div>
-                                            <div className="flex justify-between items-center pt-3 border-t border-white/5">
-                                                <div className="flex gap-2 text-[10px] text-subtext font-mono">
-                                                    <span>{noteCount} note{noteCount > 1 ? 's' : ''}</span>
-                                                </div>
-                                                
-                                                {/* GESTION ABSENCES DANS LE MENU */}
-                                                <div className="flex items-center gap-1 bg-black rounded-lg p-1 border border-white/5">
-                                                    <button onClick={(e) => { e.stopPropagation(); updateAbsence(module.id, -1); }} className="w-5 h-5 flex items-center justify-center hover:bg-white/10 rounded text-subtext hover:text-white">-</button>
-                                                    <span className={`text-xs font-mono font-bold w-4 text-center ${absCount > 0 ? 'text-danger' : 'text-subtext'}`}>{absCount}</span>
-                                                    <button onClick={(e) => { e.stopPropagation(); updateAbsence(module.id, 1); }} className="w-5 h-5 flex items-center justify-center hover:bg-white/10 rounded text-subtext hover:text-white">+</button>
-                                                </div>
+                        {/* VUE TABLEAU DE BORD (NOTES) */}
+                        {currentView === 'DASHBOARD' && (
+                            <div className="animate-in fade-in duration-300 space-y-6">
+                                {/* BENTO GRID */}
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 h-auto md:h-48">
+                                    <div className="col-span-2 md:col-span-2 glass p-6 rounded-3xl flex flex-col justify-between relative overflow-hidden group">
+                                        <div className="absolute -right-10 -top-10 w-40 h-40 bg-primary/20 blur-3xl rounded-full group-hover:bg-primary/30 transition-all duration-500 animate-pulse-subtle"></div>
+                                        <div>
+                                            <h2 className="text-sm font-bold text-subtext uppercase tracking-wider mb-1">Moyenne Générale</h2>
+                                            <div className="text-5xl font-mono font-bold tracking-tighter text-white">
+                                                {stats.global}<span className="text-xl text-subtext opacity-50">/20</span>
                                             </div>
                                         </div>
-                                    );
-                                })}
+                                        <div className="flex gap-4 mt-4">
+                                            <div className="bg-white/5 px-3 py-1.5 rounded-lg border border-white/5">
+                                                <div className="text-[10px] text-subtext">UE21</div>
+                                                <div className={`font-bold text-sm ${getGradeColor(stats.avg21)}`}>{stats.avg21}</div>
+                                            </div>
+                                            <div className="bg-white/5 px-3 py-1.5 rounded-lg border border-white/5">
+                                                <div className="text-[10px] text-subtext">UE22</div>
+                                                <div className={`font-bold text-sm ${getGradeColor(stats.avg22)}`}>{stats.avg22}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="col-span-1 widget-hover cursor-pointer"><TimetableWidget /></div>
+                                    <div className="col-span-1 widget-hover cursor-pointer">
+                                        <div className="glass p-4 rounded-2xl h-full flex flex-col justify-center items-center text-center">
+                                            <div className="text-3xl font-bold mb-1">{Object.values(taskStatus).filter(Boolean).length}</div>
+                                            <div className="text-[10px] text-subtext uppercase">Tâches Finies</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* LINKS */}
+                                <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
+                                    {[
+                                        { name: 'Moodle', url: LINKS.MOODLE, color: 'bg-orange-500', icon: 'graduation-cap' },
+                                        { name: 'Mire GEII', url: LINKS.MIRE, color: 'bg-emerald-500', icon: 'file-text' },
+                                        { name: 'ADE Planning', url: LINKS.ADE, color: 'bg-indigo-500', icon: 'calendar' },
+                                        { name: 'Mail Univ', url: LINKS.MAIL, color: 'bg-sky-500', icon: 'mail' },
+                                        { name: 'Dépôt Justif', url: LINKS.DOCS, color: 'bg-purple-500', icon: 'paperclip' },
+                                    ].map((link, i) => (
+                                        <a key={i} href={link.url} target="_blank" className="flex items-center gap-2 pl-2 pr-4 py-2 bg-[#1c1c1e] border border-white/5 rounded-full whitespace-nowrap hover:bg-[#2c2c2e] transition-colors">
+                                            <div className={`w-6 h-6 rounded-full ${link.color} flex items-center justify-center text-white`}><Icon name={link.icon} size={12} /></div>
+                                            <span className="text-xs font-bold">{link.name}</span>
+                                        </a>
+                                    ))}
+                                </div>
+
+                                {/* GRADES LIST */}
+                                <div>
+                                    <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><Icon name="folder-open" size={20} className="text-subtext"/>Portfolio S2</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                        {MODULES_CONFIG.map(module => {
+                                            const avg = calculateSubjectAverage(gradesMap[module.id]);
+                                            const absCount = absences[module.id] || 0;
+                                            const noteCount = gradesMap[module.id]?.length || 0;
+
+                                            return (
+                                                <div key={module.id} className="bg-[#1c1c1e] border border-white/5 p-4 rounded-2xl group hover:border-white/20 transition-all">
+                                                    <div className="flex justify-between items-start mb-4 cursor-pointer" onClick={() => handleModuleClick(module)}>
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-xs font-bold text-subtext group-hover:text-white group-hover:bg-primary/20 transition-colors">
+                                                                {module.short.substring(0,2)}
+                                                            </div>
+                                                            <div>
+                                                                <div className="font-bold text-sm text-white leading-tight">{module.short}</div>
+                                                                <div className="text-[10px] text-subtext">{module.category}</div>
+                                                            </div>
+                                                        </div>
+                                                        <div className={`font-mono font-bold text-xl ${getGradeColor(avg)}`}>
+                                                            {avg || <span className="text-subtext opacity-30">—</span>}
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex justify-between items-center pt-3 border-t border-white/5">
+                                                        <div className="flex gap-2 text-[10px] text-subtext font-mono">
+                                                            <span>{noteCount} note{noteCount > 1 ? 's' : ''}</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-1 bg-black rounded-lg p-1 border border-white/5">
+                                                            <button onClick={(e) => { e.stopPropagation(); updateAbsence(module.id, -1); }} className="w-5 h-5 flex items-center justify-center hover:bg-white/10 rounded text-subtext hover:text-white">-</button>
+                                                            <span className={`text-xs font-mono font-bold w-4 text-center ${absCount > 0 ? 'text-danger' : 'text-subtext'}`}>{absCount}</span>
+                                                            <button onClick={(e) => { e.stopPropagation(); updateAbsence(module.id, 1); }} className="w-5 h-5 flex items-center justify-center hover:bg-white/10 rounded text-subtext hover:text-white">+</button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
                             </div>
-                        </div>
+                        )}
+
+                        {/* VUE AGENDA (QCM) */}
+                        {currentView === 'AGENDA' && (
+                            <div className="animate-in fade-in duration-300">
+                                <div className="mb-6">
+                                    <h1 className="text-2xl font-bold mb-1">Agenda QCM</h1>
+                                    <p className="text-subtext text-sm">Suivi des deadlines Énergie, Physique & Maths</p>
+                                </div>
+                                <TasksList tasks={TASKS_DATA} taskStatus={taskStatus} onToggle={toggleTask} />
+                            </div>
+                        )}
 
                     </main>
                 </div>
