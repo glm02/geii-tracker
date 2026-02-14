@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My GEII Tracker - Rafael Guilland-Mille</title>
+    <title>My GEII Tracker AI - Rafael Guilland-Mille</title>
     
     <!-- React & ReactDOM -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
@@ -33,6 +33,15 @@
                             warning: '#f59e0b',
                             danger: '#ef4444'
                         }
+                    },
+                    animation: {
+                        'gradient': 'gradient 3s ease infinite',
+                    },
+                    keyframes: {
+                        gradient: {
+                            '0%, 100%': { 'background-size': '200% 200%', 'background-position': 'left center' },
+                            '50%': { 'background-size': '200% 200%', 'background-position': 'right center' },
+                        }
                     }
                 }
             }
@@ -53,6 +62,29 @@
             -webkit-appearance: none; 
             margin: 0; 
         }
+        .ai-gradient-text {
+            background: linear-gradient(to right, #60a5fa, #c084fc, #f472b6);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        .ai-border {
+            position: relative;
+        }
+        .ai-border::before {
+            content: "";
+            position: absolute;
+            inset: -2px;
+            border-radius: inherit;
+            padding: 2px;
+            background: linear-gradient(45deg, #3b82f6, #8b5cf6, #ec4899);
+            -webkit-mask: 
+                linear-gradient(#fff 0 0) content-box, 
+                linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            opacity: 0.7;
+        }
     </style>
 </head>
 <body>
@@ -61,10 +93,39 @@
     <script type="text/babel">
         const { useState, useEffect, useMemo } = React;
         
+        // --- CONFIGURATION GEMINI API ---
+        const apiKey = ""; // La clé est injectée automatiquement par l'environnement
+        
+        const callGemini = async (prompt, systemInstruction = "") => {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+            const payload = {
+                contents: [{ parts: [{ text: prompt }] }],
+                systemInstruction: { parts: [{ text: systemInstruction }] }
+            };
+
+            // Backoff logic
+            const delays = [1000, 2000, 4000, 8000, 16000];
+            for (let i = 0; i < delays.length; i++) {
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    
+                    const data = await response.json();
+                    return data.candidates?.[0]?.content?.parts?.[0]?.text || "Pas de réponse.";
+                } catch (error) {
+                    if (i === delays.length - 1) throw error;
+                    await new Promise(resolve => setTimeout(resolve, delays[i]));
+                }
+            }
+        };
+
         // --- DONNÉES ET CONFIGURATION ---
         
-        // Configuration des Modules et Coefficients
-        // Structure: ID unique, Label, Coef UE21, Coef UE22
         const MODULES_CONFIG = [
             { id: 'R2.01', label: 'R2.01 - Analyse (AN2)', coef21: 1.1, coef22: 0, category: 'Fondamentaux' },
             { id: 'R2.02', label: 'R2.02 - Culture Com (CC2)', coef21: 1.1, coef22: 0, category: 'Transverse' },
@@ -81,7 +142,6 @@
             { id: 'PF2', label: 'Portfolio S2', coef21: 1.0, coef22: 1.0, category: 'SAÉ' },
         ];
 
-        // Tâches initiales extraites du texte
         const INITIAL_TASKS = [
             { id: 1, title: 'QCM_TD1', deadline: '2026-02-13', type: 'QCM', done: false },
             { id: 2, title: 'QCM_TD2', deadline: '2026-03-04', type: 'QCM', done: false },
@@ -105,16 +165,31 @@
             return <i data-lucide={name} width={size} height={size} className={className}></i>;
         };
 
-        const ProgressBar = ({ value, max = 20, label, colorClass }) => {
-            const percentage = Math.min((value / max) * 100, 100);
+        const Modal = ({ isOpen, onClose, title, children, isLoading }) => {
+            if (!isOpen) return null;
             return (
-                <div className="mb-4">
-                    <div className="flex justify-between mb-1">
-                        <span className="text-sm font-medium text-gray-300">{label}</span>
-                        <span className={`text-sm font-bold ${colorClass}`}>{value} / 20</span>
-                    </div>
-                    <div className="w-full bg-gray-700 rounded-full h-2.5">
-                        <div className={`h-2.5 rounded-full transition-all duration-500 ${colorClass.replace('text-', 'bg-')}`} style={{ width: `${percentage}%` }}></div>
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto ai-border">
+                        <div className="p-6">
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                                    <span className="text-2xl">✨</span> {title}
+                                </h3>
+                                <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
+                                    <Icon name="x" size={24} />
+                                </button>
+                            </div>
+                            <div className="text-gray-300 leading-relaxed whitespace-pre-wrap">
+                                {isLoading ? (
+                                    <div className="flex flex-col items-center justify-center py-10 gap-4">
+                                        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-purple-500"></div>
+                                        <p className="text-purple-300 animate-pulse">L'IA analyse vos données...</p>
+                                    </div>
+                                ) : (
+                                    children
+                                )}
+                            </div>
+                        </div>
                     </div>
                 </div>
             );
@@ -179,7 +254,12 @@
             // -- State --
             const [grades, setGrades] = useState({});
             const [tasks, setTasks] = useState(INITIAL_TASKS);
-            const [showConfetti, setShowConfetti] = useState(false);
+            
+            // AI States
+            const [modalOpen, setModalOpen] = useState(false);
+            const [modalTitle, setModalTitle] = useState("");
+            const [modalContent, setModalContent] = useState("");
+            const [loadingAI, setLoadingAI] = useState(false);
 
             // -- Chargement/Sauvegarde --
             useEffect(() => {
@@ -187,8 +267,6 @@
                 const savedTasks = localStorage.getItem('geii_tasks');
                 if (savedGrades) setGrades(JSON.parse(savedGrades));
                 if (savedTasks) setTasks(JSON.parse(savedTasks));
-                
-                // Refresh icons
                 lucide.createIcons();
             }, []);
 
@@ -219,6 +297,59 @@
                 }
             };
 
+            // -- AI Logic --
+            const handleAIAnalysis = async () => {
+                setModalTitle("Analyse Stratégique du Coach IA");
+                setModalOpen(true);
+                setLoadingAI(true);
+
+                const filledGrades = MODULES_CONFIG.map(m => `${m.id}: ${grades[m.id] || "Non noté"}`).join(", ");
+                const upcomingTasks = tasks.filter(t => !t.done).map(t => `${t.title} (${t.deadline})`).join(", ");
+
+                const prompt = `
+                    Je suis étudiant en BUT GEII (Génie Électrique et Info Indus).
+                    Voici mes notes actuelles : [${filledGrades}]
+                    Voici mes tâches à venir : [${upcomingTasks}]
+                    
+                    Agis comme un coach académique bienveillant mais exigeant.
+                    1. Analyse mes points forts et faibles actuels.
+                    2. Donne-moi une stratégie en 3 points concrets pour réussir mon semestre.
+                    3. Identifie ma priorité absolue pour les 7 prochains jours.
+                    Utilise des emojis, sois concis et structuré.
+                `;
+
+                try {
+                    const response = await callGemini(prompt, "Tu es un expert pédagogique en génie électrique et informatique.");
+                    setModalContent(response);
+                } catch (e) {
+                    setModalContent("Erreur lors de la communication avec l'IA. Vérifiez votre connexion.");
+                } finally {
+                    setLoadingAI(false);
+                }
+            };
+
+            const handleModuleHelp = async (module) => {
+                setModalTitle(`Aide & Astuces : ${module.label}`);
+                setModalOpen(true);
+                setLoadingAI(true);
+
+                const prompt = `
+                    Explique brièvement ce qu'on étudie dans le module "${module.label}" en BUT GEII.
+                    Donne 3 concepts clés difficiles souvent rencontrés par les étudiants.
+                    Donne une astuce de révision spécifique ("Golden Tip") pour valider ce module.
+                    Reste concis (max 150 mots).
+                `;
+
+                try {
+                    const response = await callGemini(prompt, "Tu es un professeur de GEII expérimenté.");
+                    setModalContent(response);
+                } catch (e) {
+                    setModalContent("Impossible de récupérer les infos du module.");
+                } finally {
+                    setLoadingAI(false);
+                }
+            };
+
             // -- Calculs --
             const calculateAverage = (ueType) => {
                 let totalPoints = 0;
@@ -228,17 +359,12 @@
                     const coef = ueType === 'UE21' ? module.coef21 : module.coef22;
                     if (coef > 0) {
                         const grade = grades[module.id] !== undefined && !isNaN(grades[module.id]) ? grades[module.id] : null;
-                        
-                        // On ne compte que les notes remplies pour une moyenne "courante", 
-                        // ou on peut considérer 0 si on veut être strict. Ici: on fait une moyenne sur ce qui est noté.
-                        // Pour simuler, l'utilisateur mettra ses estimations.
                         if (grade !== null) {
                             totalPoints += grade * coef;
                             totalCoef += coef;
                         }
                     }
                 });
-
                 return totalCoef === 0 ? "—" : (totalPoints / totalCoef).toFixed(2);
             };
 
@@ -255,13 +381,22 @@
 
             return (
                 <div className="min-h-screen pb-12">
+                    <Modal 
+                        isOpen={modalOpen} 
+                        onClose={() => setModalOpen(false)} 
+                        title={modalTitle}
+                        isLoading={loadingAI}
+                    >
+                        {modalContent}
+                    </Modal>
+
                     {/* Header */}
-                    <header className="bg-gradient-to-r from-blue-900 to-slate-900 border-b border-gray-800 p-6 shadow-lg">
+                    <header className="bg-gradient-to-r from-blue-900 via-slate-900 to-purple-900 border-b border-gray-800 p-6 shadow-lg">
                         <div className="max-w-5xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
                             <div>
                                 <h1 className="text-3xl font-bold text-white flex items-center gap-3">
                                     <Icon name="cpu" className="text-blue-400" />
-                                    My GEII Tracker
+                                    My GEII Tracker <span className="text-xs bg-purple-600 px-2 py-0.5 rounded-full text-white ml-2">AI Powered ✨</span>
                                 </h1>
                                 <p className="text-blue-200 mt-1">Rafael GUILLAND-MILLE | BUT GEII - S2 2025/2026</p>
                             </div>
@@ -273,7 +408,7 @@
 
                     <main className="max-w-5xl mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
                         
-                        {/* COLONNE GAUCHE : DASHBOARD & TACHES */}
+                        {/* COLONNE GAUCHE */}
                         <div className="lg:col-span-1 space-y-6">
                             
                             {/* Dashboard Cards */}
@@ -287,19 +422,22 @@
                                     <div className="text-center p-4 bg-slate-800/50 rounded-lg border border-slate-700">
                                         <p className="text-sm text-gray-400 mb-1">Moyenne UE21 (Concevoir)</p>
                                         <div className={`text-4xl font-bold ${getScoreColor(avg21)}`}>{avg21}</div>
-                                        <p className="text-xs text-gray-500 mt-1">Coef. cumulés</p>
                                     </div>
                                     
                                     <div className="text-center p-4 bg-slate-800/50 rounded-lg border border-slate-700">
                                         <p className="text-sm text-gray-400 mb-1">Moyenne UE22 (Vérifier)</p>
                                         <div className={`text-4xl font-bold ${getScoreColor(avg22)}`}>{avg22}</div>
-                                        <p className="text-xs text-gray-500 mt-1">Coef. cumulés</p>
                                     </div>
                                 </div>
-                                
-                                <div className="mt-4 pt-4 border-t border-gray-700 text-xs text-center text-gray-500">
-                                    Objectif passage : > 10/20 partout
-                                </div>
+
+                                {/* BOUTON IA */}
+                                <button 
+                                    onClick={handleAIAnalysis}
+                                    className="mt-6 w-full py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white rounded-lg font-bold shadow-lg transform hover:scale-[1.02] transition-all flex items-center justify-center gap-2 group"
+                                >
+                                    <Icon name="sparkles" size={18} className="group-hover:animate-spin" />
+                                    Analyser mon Semestre
+                                </button>
                             </div>
 
                             {/* Task Manager */}
@@ -307,7 +445,7 @@
                                 <div className="flex justify-between items-center mb-4 pb-2 border-b border-gray-700">
                                     <h2 className="text-lg font-semibold text-gray-200 flex items-center gap-2">
                                         <Icon name="bell-ring" className="text-yellow-500" size={18}/> 
-                                        Rappels / To-Do
+                                        Rappels
                                     </h2>
                                     <span className="bg-blue-600 text-xs px-2 py-1 rounded-full text-white">
                                         {tasks.filter(t => !t.done).length}
@@ -330,7 +468,7 @@
                                             <Icon name="calculator" className="text-green-400" />
                                             Simulateur de Notes
                                         </h2>
-                                        <p className="text-sm text-gray-400">Entrez vos notes (même provisoires). Les moyennes se recalculent instantanément.</p>
+                                        <p className="text-sm text-gray-400">Cliquez sur <Icon name="bot" size={14} className="inline text-purple-400"/> pour l'aide IA.</p>
                                     </div>
                                     <button onClick={resetData} className="text-xs text-red-400 hover:text-red-300 underline">
                                         Réinitialiser
@@ -339,19 +477,25 @@
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     {MODULES_CONFIG.map(module => (
-                                        <div key={module.id} className="bg-slate-800/40 p-3 rounded-lg border border-slate-700/50 hover:border-slate-600 transition-colors">
-                                            <div className="flex justify-between items-start mb-2">
+                                        <div key={module.id} className="bg-slate-800/40 p-3 rounded-lg border border-slate-700/50 hover:border-slate-600 transition-colors group relative">
+                                            
+                                            {/* AI Help Button */}
+                                            <button 
+                                                onClick={() => handleModuleHelp(module)}
+                                                className="absolute top-2 right-2 text-slate-500 hover:text-purple-400 transition-colors"
+                                                title="Demander à l'IA"
+                                            >
+                                                <Icon name="bot" size={16} />
+                                            </button>
+
+                                            <div className="flex justify-between items-start mb-2 pr-6">
                                                 <div>
                                                     <span className="font-medium text-gray-200 block">{module.id}</span>
                                                     <span className="text-xs text-gray-400 block truncate max-w-[150px]" title={module.label}>{module.label.split('-')[1] || module.label}</span>
                                                 </div>
-                                                <div className="flex flex-col items-end gap-1">
-                                                    {module.coef21 > 0 && <span className="text-[10px] bg-blue-900/50 text-blue-300 px-1.5 rounded border border-blue-900">UE21: x{module.coef21}</span>}
-                                                    {module.coef22 > 0 && <span className="text-[10px] bg-purple-900/50 text-purple-300 px-1.5 rounded border border-purple-900">UE22: x{module.coef22}</span>}
-                                                </div>
                                             </div>
                                             
-                                            <div className="flex items-center gap-2">
+                                            <div className="flex items-center gap-2 mt-4">
                                                 <input 
                                                     type="number" 
                                                     min="0" 
@@ -364,24 +508,13 @@
                                                 />
                                                 <span className="text-gray-500 font-mono text-sm">/20</span>
                                             </div>
+                                            
+                                            <div className="mt-2 flex gap-1 justify-end opacity-50 text-[10px]">
+                                                 {module.coef21 > 0 && <span className="bg-blue-900/50 text-blue-300 px-1 rounded">UE21: x{module.coef21}</span>}
+                                                 {module.coef22 > 0 && <span className="bg-purple-900/50 text-purple-300 px-1 rounded">UE22: x{module.coef22}</span>}
+                                            </div>
                                         </div>
                                     ))}
-                                </div>
-                            </div>
-
-                            {/* Legend / Info Footer */}
-                            <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-gray-500">
-                                <div className="glass-panel p-3 rounded flex items-center gap-2">
-                                    <div className="w-3 h-3 bg-blue-900/50 border border-blue-900 rounded"></div>
-                                    <span>UE21: Concevoir</span>
-                                </div>
-                                <div className="glass-panel p-3 rounded flex items-center gap-2">
-                                    <div className="w-3 h-3 bg-purple-900/50 border border-purple-900 rounded"></div>
-                                    <span>UE22: Vérifier</span>
-                                </div>
-                                <div className="glass-panel p-3 rounded flex items-center gap-2">
-                                    <div className="w-3 h-3 bg-gradient-to-r from-blue-900 to-purple-900 rounded"></div>
-                                    <span>Modules Communs</span>
                                 </div>
                             </div>
                         </div>
