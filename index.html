@@ -1,47 +1,41 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My GEII Tracker AI - Rafael Guilland-Mille</title>
+    <title>GEII TERMINAL v3.0</title>
     
-    <!-- React & ReactDOM -->
+    <!-- React & Dependencies -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    
-    <!-- Babel pour le JSX -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
 
-    <!-- Configuration Tailwind -->
+    <!-- Firebase SDKs (Modular) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot, collection, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
+        window.firebaseModules = { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, getFirestore, doc, setDoc, onSnapshot, collection, getDoc };
+    </script>
+
     <script>
         tailwind.config = {
             darkMode: 'class',
             theme: {
                 extend: {
                     colors: {
-                        geii: {
-                            dark: '#0f172a',
-                            card: '#1e293b',
-                            accent: '#3b82f6',
-                            success: '#10b981',
-                            warning: '#f59e0b',
-                            danger: '#ef4444'
-                        }
+                        background: '#000000',
+                        surface: '#09090b',
+                        border: '#27272a',
+                        primary: '#ffffff',
+                        secondary: '#a1a1aa',
                     },
-                    animation: {
-                        'gradient': 'gradient 3s ease infinite',
-                    },
-                    keyframes: {
-                        gradient: {
-                            '0%, 100%': { 'background-size': '200% 200%', 'background-position': 'left center' },
-                            '50%': { 'background-size': '200% 200%', 'background-position': 'right center' },
-                        }
+                    fontFamily: {
+                        mono: ['"JetBrains Mono"', 'monospace'],
+                        sans: ['"Inter"', 'sans-serif'],
                     }
                 }
             }
@@ -49,475 +43,530 @@
     </script>
     
     <style>
-        body { background-color: #0f172a; color: #e2e8f0; font-family: 'Inter', sans-serif; }
-        .glass-panel {
-            background: rgba(30, 41, 59, 0.7);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=JetBrains+Mono:wght@400;700&display=swap');
+        
+        body { background-color: #000000; color: #ffffff; font-family: 'Inter', sans-serif; }
+        
+        /* Utility for "Ultra Pro" aesthetics */
+        .pro-border { border: 1px solid #27272a; }
+        .pro-card { background-color: #09090b; border: 1px solid #27272a; }
+        .mono-num { font-family: 'JetBrains Mono', monospace; letter-spacing: -0.5px; }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #000; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
+
+        /* Loader */
+        .loader {
+            width: 16px; height: 16px; border: 2px solid #fff; border-bottom-color: transparent; border-radius: 50%; display: inline-block; box-sizing: border-box; animation: rotation 1s linear infinite;
         }
-        /* Masquer les flèches des input number */
-        input[type=number]::-webkit-inner-spin-button, 
-        input[type=number]::-webkit-outer-spin-button { 
-            -webkit-appearance: none; 
-            margin: 0; 
-        }
-        .ai-gradient-text {
-            background: linear-gradient(to right, #60a5fa, #c084fc, #f472b6);
-            -webkit-background-clip: text;
-            background-clip: text;
-            color: transparent;
-        }
-        .ai-border {
-            position: relative;
-        }
-        .ai-border::before {
-            content: "";
-            position: absolute;
-            inset: -2px;
-            border-radius: inherit;
-            padding: 2px;
-            background: linear-gradient(45deg, #3b82f6, #8b5cf6, #ec4899);
-            -webkit-mask: 
-                linear-gradient(#fff 0 0) content-box, 
-                linear-gradient(#fff 0 0);
-            -webkit-mask-composite: xor;
-            mask-composite: exclude;
-            opacity: 0.7;
-        }
+        @keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        .status-dot { height: 8px; width: 8px; border-radius: 50%; display: inline-block; }
+        .dot-green { background-color: #10b981; box-shadow: 0 0 8px #10b981; }
+        .dot-red { background-color: #ef4444; box-shadow: 0 0 8px #ef4444; }
+        .dot-orange { background-color: #f59e0b; box-shadow: 0 0 8px #f59e0b; }
     </style>
 </head>
 <body>
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect, useMemo } = React;
-        
-        // --- CONFIGURATION GEMINI API ---
-        const apiKey = ""; // La clé est injectée automatiquement par l'environnement
-        
-        const callGemini = async (prompt, systemInstruction = "") => {
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
-            const payload = {
-                contents: [{ parts: [{ text: prompt }] }],
-                systemInstruction: { parts: [{ text: systemInstruction }] }
-            };
+        const { useState, useEffect, useRef, useMemo } = React;
 
-            // Backoff logic
-            const delays = [1000, 2000, 4000, 8000, 16000];
-            for (let i = 0; i < delays.length; i++) {
-                try {
-                    const response = await fetch(url, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
-                    
-                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                    
-                    const data = await response.json();
-                    return data.candidates?.[0]?.content?.parts?.[0]?.text || "Pas de réponse.";
-                } catch (error) {
-                    if (i === delays.length - 1) throw error;
-                    await new Promise(resolve => setTimeout(resolve, delays[i]));
-                }
+        // --- DATA CONFIGURATION ---
+        
+        const MODULES_CONFIG_S2 = [
+            { id: 'R2.01', short: 'AN2', label: 'Analyse', coef21: 1.1, coef22: 0, category: 'Fonda' },
+            { id: 'R2.02', short: 'CC2', label: 'Culture Com', coef21: 1.1, coef22: 0, category: 'Trans' },
+            { id: 'R2.03', short: 'VE2', label: 'Vie Entr.', coef21: 0.8, coef22: 0, category: 'Trans' },
+            { id: 'R2.04', short: 'OML2', label: 'Outils Maths', coef21: 2.6, coef22: 0, category: 'Fonda' },
+            { id: 'R2.05', short: 'PPP2', label: 'Projet Pro', coef21: 0.8, coef22: 0.2, category: 'Trans' },
+            { id: 'R2.06', short: 'AUTO2', label: 'Automatisme', coef21: 0, coef22: 2.6, category: 'Tech' },
+            { id: 'R2.07', short: 'INFO2', label: 'Info Indus', coef21: 0, coef22: 2.6, category: 'Tech' },
+            { id: 'R2.08', short: 'ELEN2', label: 'Élec/Énergie', coef21: 1.3, coef22: 1.3, category: 'Tech' },
+            { id: 'R2.09', short: 'ENER2', label: 'Énergie', coef21: 1.3, coef22: 1.3, category: 'Tech' },
+            { id: 'R2.10', short: 'PApp2', label: 'Physique App', coef21: 0, coef22: 1.0, category: 'Fonda' },
+            { id: 'S2.1', short: 'SAÉ 2.1', label: 'CAPA', coef21: 2.5, coef22: 2.5, category: 'SAÉ' },
+            { id: 'S2.2', short: 'SAÉ 2.2', label: 'Robot', coef21: 2.5, coef22: 2.5, category: 'SAÉ' },
+            { id: 'PF2', short: 'PORTFOLIO', label: 'Portfolio S2', coef21: 1.0, coef22: 1.0, category: 'SAÉ' },
+        ];
+
+        // Génération automatique des dates pour Maths (2 par semaine)
+        const generateMathTasks = () => {
+            let tasks = [];
+            let startDate = new Date('2026-02-02');
+            for(let i=0; i<15; i++) {
+                let d1 = new Date(startDate); d1.setDate(startDate.getDate() + (i*7));
+                let d2 = new Date(startDate); d2.setDate(startDate.getDate() + (i*7) + 3);
+                tasks.push({ module: 'R2.04', title: `QCM Hebdo ${i+1}.1`, end: d1.toISOString().split('T')[0] });
+                tasks.push({ module: 'R2.04', title: `QCM Hebdo ${i+1}.2`, end: d2.toISOString().split('T')[0] });
             }
+            return tasks;
         };
 
-        // --- DONNÉES ET CONFIGURATION ---
-        
-        const MODULES_CONFIG = [
-            { id: 'R2.01', label: 'R2.01 - Analyse (AN2)', coef21: 1.1, coef22: 0, category: 'Fondamentaux' },
-            { id: 'R2.02', label: 'R2.02 - Culture Com (CC2)', coef21: 1.1, coef22: 0, category: 'Transverse' },
-            { id: 'R2.03', label: 'R2.03 - Vie Entr. (VE2)', coef21: 0.8, coef22: 0, category: 'Transverse' },
-            { id: 'R2.04', label: 'R2.04 - Outils Maths (OML2)', coef21: 2.6, coef22: 0, category: 'Fondamentaux' },
-            { id: 'R2.05', label: 'R2.05 - PPP (PPP2)', coef21: 0.8, coef22: 0.2, category: 'Transverse' },
-            { id: 'R2.06', label: 'R2.06 - Automatisme (AUTO2)', coef21: 0, coef22: 2.6, category: 'Technique' },
-            { id: 'R2.07', label: 'R2.07 - Info Indus (INFO2)', coef21: 0, coef22: 2.6, category: 'Technique' },
-            { id: 'R2.08', label: 'R2.08 - Élec/Énergie (ELEN2)', coef21: 1.3, coef22: 1.3, category: 'Technique' },
-            { id: 'R2.09', label: 'R2.09 - Énergie (ENER2)', coef21: 1.3, coef22: 1.3, category: 'Technique' },
-            { id: 'R2.10', label: 'R2.10 - Physique App (PApp2)', coef21: 0, coef22: 1.0, category: 'Fondamentaux' },
-            { id: 'S2.1', label: 'SAÉ 2.1 - CAPA', coef21: 2.5, coef22: 2.5, category: 'SAÉ' },
-            { id: 'S2.2', label: 'SAÉ 2.2 - Robot', coef21: 2.5, coef22: 2.5, category: 'SAÉ' },
-            { id: 'PF2', label: 'Portfolio S2', coef21: 1.0, coef22: 1.0, category: 'SAÉ' },
+        const TASKS_DATA = [
+            // ÉNERGIE (ENER2 - R2.09)
+            { module: 'R2.09', title: 'QCM_TD1', start: '2026-02-02', end: '2026-02-13' },
+            { module: 'R2.09', title: 'QCM_TD2', start: '2026-02-09', end: '2026-03-04' },
+            { module: 'R2.09', title: 'QCM_TD3', start: '2026-02-23', end: '2026-03-06' },
+            { module: 'R2.09', title: 'QCM_TD4', start: '2026-03-02', end: '2026-03-13' }, // Date corrigée (2025->2026)
+            { module: 'R2.09', title: 'QCM_TD6', start: '2026-03-16', end: '2026-03-27' },
+            { module: 'R2.09', title: 'QCM_TD8', start: '2026-03-30', end: '2026-04-24' },
+            { module: 'R2.09', title: 'QCM_TD9', start: '2026-04-20', end: '2026-04-30' },
+            { module: 'R2.09', title: 'QCM_TD11', start: '2026-04-27', end: '2026-05-08' },
+            { module: 'R2.09', title: 'QCM_TD12', start: '2026-05-11', end: '2026-05-21' },
+            
+            // PHYSIQUE (PApp2 - R2.10)
+            { module: 'R2.10', title: 'QCM1_Séance 1', start: '2026-01-26', end: '2026-02-06' },
+            { module: 'R2.10', title: 'QCM2_Séance 2', start: '2026-02-02', end: '2026-02-13' },
+            { module: 'R2.10', title: 'QCM3 - Devoir (PDF)', start: '2026-02-09', end: '2026-02-27', type: 'DEVOIR' },
+            { module: 'R2.10', title: 'QCM4', start: '2026-02-23', end: '2026-03-06' },
+            { module: 'R2.10', title: 'QCM5', start: '2026-03-02', end: '2026-03-13' },
+            { module: 'R2.10', title: 'QCM6', start: '2026-03-09', end: '2026-03-20' },
+            { module: 'R2.10', title: 'QCM7', start: '2026-03-17', end: '2026-03-28' }, // Dates ajustées 2026
+            { module: 'R2.10', title: 'QCM8', start: '2026-03-24', end: '2026-04-04' },
+            { module: 'R2.10', title: 'QCM9', start: '2026-03-01', end: '2026-04-11' }, // Supposition date cohérente
+            { module: 'R2.10', title: 'QCM10', start: '2026-04-07', end: '2026-04-18' },
+            { module: 'R2.10', title: 'QCM11', start: '2026-04-14', end: '2026-05-09' },
+            { module: 'R2.10', title: 'QCM12', start: '2026-05-05', end: '2026-05-16' },
+            { module: 'R2.10', title: 'QCM13', start: '2026-05-12', end: '2026-05-23' },
+            { module: 'R2.10', title: 'QCM14', start: '2026-05-19', end: '2026-05-30' },
+
+            ...generateMathTasks()
         ];
 
-        const INITIAL_TASKS = [
-            { id: 1, title: 'QCM_TD1', deadline: '2026-02-13', type: 'QCM', done: false },
-            { id: 2, title: 'QCM_TD2', deadline: '2026-03-04', type: 'QCM', done: false },
-            { id: 3, title: 'QCM3 - Devoir (PDF/Image)', deadline: '2026-02-27', type: 'DEVOIR', done: false },
-            { id: 4, title: 'QCM4', deadline: '2026-03-06', type: 'QCM', done: false },
-            { id: 5, title: 'QCM5', deadline: '2026-03-13', type: 'QCM', done: false },
-            { id: 6, title: 'QCM6', deadline: '2026-03-20', type: 'QCM', done: false },
-            { id: 7, title: 'QCM_TD6', deadline: '2026-03-27', type: 'QCM', done: false },
-            { id: 8, title: 'QCM_TD8', deadline: '2026-04-24', type: 'QCM', done: false },
-            { id: 9, title: 'QCM_TD9', deadline: '2026-04-30', type: 'QCM', done: false },
-            { id: 10, title: 'QCM_TD11', deadline: '2026-05-08', type: 'QCM', done: false },
-            { id: 11, title: 'QCM_TD12', deadline: '2026-05-21', type: 'QCM', done: false },
-        ];
+        // --- COMPONENTS ---
 
-        // --- COMPOSANTS UI ---
-
-        const Icon = ({ name, size = 20, className = "" }) => {
-            React.useEffect(() => {
-                lucide.createIcons();
-            }, [name]);
+        const Icon = ({ name, size = 16, className = "" }) => {
+            useEffect(() => { lucide.createIcons(); }, [name]);
             return <i data-lucide={name} width={size} height={size} className={className}></i>;
         };
 
-        const Modal = ({ isOpen, onClose, title, children, isLoading }) => {
-            if (!isOpen) return null;
-            return (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                    <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto ai-border">
-                        <div className="p-6">
-                            <div className="flex justify-between items-center mb-4">
-                                <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                                    <span className="text-2xl">✨</span> {title}
-                                </h3>
-                                <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
-                                    <Icon name="x" size={24} />
-                                </button>
-                            </div>
-                            <div className="text-gray-300 leading-relaxed whitespace-pre-wrap">
-                                {isLoading ? (
-                                    <div className="flex flex-col items-center justify-center py-10 gap-4">
-                                        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-purple-500"></div>
-                                        <p className="text-purple-300 animate-pulse">L'IA analyse vos données...</p>
-                                    </div>
-                                ) : (
-                                    children
-                                )}
-                            </div>
-                        </div>
-                    </div>
+        const StatCard = ({ title, value, subtext, highlight = false }) => (
+            <div className={`pro-card p-4 flex flex-col justify-between h-32 hover:border-white transition-colors cursor-default group ${highlight ? 'bg-zinc-900' : ''}`}>
+                <div className="flex justify-between items-start">
+                    <span className="text-xs font-bold text-secondary uppercase tracking-widest">{title}</span>
+                    {highlight && <div className="status-dot dot-green animate-pulse"></div>}
                 </div>
-            );
-        };
-
-        const TaskItem = ({ task, onToggle }) => {
-            const today = new Date();
-            const deadline = new Date(task.deadline);
-            const diffTime = deadline - today;
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-            
-            let statusColor = "text-gray-400";
-            let statusText = `${diffDays} jours restants`;
-            let urgencyClass = "border-gray-700";
-
-            if (task.done) {
-                statusText = "Terminé";
-                statusColor = "text-green-500";
-                urgencyClass = "border-green-900 bg-green-900/10 opacity-50";
-            } else if (diffDays < 0) {
-                statusText = "En retard";
-                statusColor = "text-red-500";
-                urgencyClass = "border-red-900 bg-red-900/10";
-            } else if (diffDays <= 3) {
-                statusText = "URGENT !";
-                statusColor = "text-red-400 font-bold animate-pulse";
-                urgencyClass = "border-red-500 bg-red-500/10";
-            } else if (diffDays <= 7) {
-                statusText = "Bientôt";
-                statusColor = "text-orange-400";
-                urgencyClass = "border-orange-500/50";
-            }
-
-            return (
-                <div className={`flex items-center justify-between p-3 mb-2 rounded-lg border glass-panel transition-all ${urgencyClass}`}>
-                    <div className="flex items-center gap-3">
-                        <button 
-                            onClick={() => onToggle(task.id)}
-                            className={`w-6 h-6 rounded border flex items-center justify-center transition-colors ${task.done ? 'bg-green-500 border-green-500' : 'border-gray-500 hover:border-blue-400'}`}
-                        >
-                            {task.done && <Icon name="check" size={14} className="text-white" />}
-                        </button>
-                        <div>
-                            <p className={`font-medium ${task.done ? 'line-through text-gray-500' : 'text-gray-200'}`}>{task.title}</p>
-                            <p className="text-xs text-gray-500 flex items-center gap-1">
-                                <Icon name="calendar" size={10} /> {new Date(task.deadline).toLocaleDateString('fr-FR')}
-                                <span className="mx-1">•</span>
-                                <span className={task.type === 'DEVOIR' ? 'text-purple-400' : 'text-blue-400'}>{task.type}</span>
-                            </p>
-                        </div>
+                <div>
+                    <div className="text-4xl font-mono font-bold tracking-tighter group-hover:scale-105 transition-transform origin-left">
+                        {value}
                     </div>
-                    <div className={`text-xs text-right font-mono ${statusColor}`}>
-                        {statusText}
-                    </div>
+                    {subtext && <div className="text-xs text-zinc-500 mt-2 font-mono">{subtext}</div>}
                 </div>
-            );
-        };
-
-        // --- COMPOSANT PRINCIPAL ---
+            </div>
+        );
 
         const App = () => {
-            // -- State --
-            const [grades, setGrades] = useState({});
-            const [tasks, setTasks] = useState(INITIAL_TASKS);
-            
-            // AI States
-            const [modalOpen, setModalOpen] = useState(false);
-            const [modalTitle, setModalTitle] = useState("");
-            const [modalContent, setModalContent] = useState("");
-            const [loadingAI, setLoadingAI] = useState(false);
+            // State
+            const [user, setUser] = useState(null);
+            const [isOffline, setIsOffline] = useState(false); // New Offline Flag
+            const [view, setView] = useState('TASKS'); // Default view TASKS
+            const [gradesS2, setGradesS2] = useState({});
+            const [gradesS1, setGradesS1] = useState({ ue11: '', ue12: '' });
+            const [taskStatus, setTaskStatus] = useState({}); // { taskTitle_module: boolean }
+            const [loading, setLoading] = useState(true);
+            const [friendId, setFriendId] = useState('');
+            const [friendData, setFriendData] = useState(null);
+            const [isPublished, setIsPublished] = useState(false);
 
-            // -- Chargement/Sauvegarde --
+            // Refs
+            const dbRef = useRef(null);
+            const appIdRef = useRef(typeof __app_id !== 'undefined' ? __app_id : 'default-geii-app');
+
+            // --- INIT LOGIC (OFFLINE/ONLINE) ---
             useEffect(() => {
-                const savedGrades = localStorage.getItem('geii_grades');
-                const savedTasks = localStorage.getItem('geii_tasks');
-                if (savedGrades) setGrades(JSON.parse(savedGrades));
-                if (savedTasks) setTasks(JSON.parse(savedTasks));
-                lucide.createIcons();
+                const initApp = async () => {
+                    // Check if Firebase config exists in env
+                    const hasFirebaseConfig = typeof __firebase_config !== 'undefined' && __firebase_config !== "";
+                    
+                    if (!hasFirebaseConfig) {
+                        console.log("⚠️ No Firebase Config found. Starting in OFFLINE MODE.");
+                        setIsOffline(true);
+                        setUser({ uid: "offline_user", isAnonymous: true });
+                        
+                        // Load from LocalStorage
+                        const localGrades = localStorage.getItem('geii_pro_grades');
+                        const localTasks = localStorage.getItem('geii_pro_tasks');
+                        if (localGrades) {
+                            const parsed = JSON.parse(localGrades);
+                            if(parsed.s2) setGradesS2(parsed.s2);
+                            if(parsed.s1) setGradesS1(parsed.s1);
+                        }
+                        if (localTasks) setTaskStatus(JSON.parse(localTasks));
+                        
+                        setLoading(false);
+                        return;
+                    }
+
+                    // Online Mode (Original Logic)
+                    if (!window.firebaseModules) return;
+                    const { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, getFirestore, doc, onSnapshot } = window.firebaseModules;
+                    
+                    try {
+                        const config = JSON.parse(__firebase_config);
+                        const app = initializeApp(config);
+                        const auth = getAuth(app);
+                        const db = getFirestore(app);
+                        dbRef.current = db;
+
+                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                            await signInWithCustomToken(auth, __initial_auth_token);
+                        } else {
+                            await signInAnonymously(auth);
+                        }
+
+                        onAuthStateChanged(auth, (currentUser) => {
+                            setUser(currentUser);
+                            if (currentUser) {
+                                const userDocRef = doc(db, 'artifacts', appIdRef.current, 'users', currentUser.uid, 'grades');
+                                const unsub = onSnapshot(userDocRef, (snap) => {
+                                    if (snap.exists()) {
+                                        const data = snap.data();
+                                        if(data.s2) setGradesS2(data.s2);
+                                        if(data.s1) setGradesS1(data.s1);
+                                        if(data.tasks) setTaskStatus(data.tasks);
+                                        if(data.isPublished) setIsPublished(data.isPublished);
+                                    }
+                                    setLoading(false);
+                                }, (err) => console.error("Sync Error", err));
+                                return () => unsub();
+                            }
+                        });
+                    } catch (e) {
+                        console.error("Firebase Init Failed, falling back to offline", e);
+                        setIsOffline(true);
+                        setUser({ uid: "offline_fallback", isAnonymous: true });
+                        setLoading(false);
+                    }
+                };
+                initApp();
             }, []);
 
-            useEffect(() => {
-                localStorage.setItem('geii_grades', JSON.stringify(grades));
-            }, [grades]);
+            // --- SAVE LOGIC ---
+            const saveData = async (newS2, newS1, newTasks, publishedStatus) => {
+                const dataToSave = {
+                    s2: newS2 !== undefined ? newS2 : gradesS2,
+                    s1: newS1 !== undefined ? newS1 : gradesS1,
+                    tasks: newTasks !== undefined ? newTasks : taskStatus,
+                    isPublished: publishedStatus !== undefined ? publishedStatus : isPublished,
+                    updatedAt: new Date().toISOString()
+                };
 
-            useEffect(() => {
-                localStorage.setItem('geii_tasks', JSON.stringify(tasks));
-            }, [tasks]);
-
-            // -- Handlers --
-            const handleGradeChange = (id, value) => {
-                let val = parseFloat(value);
-                if (val < 0) val = 0;
-                if (val > 20) val = 20;
-                setGrades(prev => ({ ...prev, [id]: val }));
-            };
-
-            const toggleTask = (id) => {
-                setTasks(prev => prev.map(t => t.id === id ? { ...t, done: !t.done } : t));
-            };
-
-            const resetData = () => {
-                if(confirm("Attention: Cela va effacer toutes vos notes simulées. Continuer ?")) {
-                    setGrades({});
-                    localStorage.removeItem('geii_grades');
-                }
-            };
-
-            // -- AI Logic --
-            const handleAIAnalysis = async () => {
-                setModalTitle("Analyse Stratégique du Coach IA");
-                setModalOpen(true);
-                setLoadingAI(true);
-
-                const filledGrades = MODULES_CONFIG.map(m => `${m.id}: ${grades[m.id] || "Non noté"}`).join(", ");
-                const upcomingTasks = tasks.filter(t => !t.done).map(t => `${t.title} (${t.deadline})`).join(", ");
-
-                const prompt = `
-                    Je suis étudiant en BUT GEII (Génie Électrique et Info Indus).
-                    Voici mes notes actuelles : [${filledGrades}]
-                    Voici mes tâches à venir : [${upcomingTasks}]
-                    
-                    Agis comme un coach académique bienveillant mais exigeant.
-                    1. Analyse mes points forts et faibles actuels.
-                    2. Donne-moi une stratégie en 3 points concrets pour réussir mon semestre.
-                    3. Identifie ma priorité absolue pour les 7 prochains jours.
-                    Utilise des emojis, sois concis et structuré.
-                `;
-
-                try {
-                    const response = await callGemini(prompt, "Tu es un expert pédagogique en génie électrique et informatique.");
-                    setModalContent(response);
-                } catch (e) {
-                    setModalContent("Erreur lors de la communication avec l'IA. Vérifiez votre connexion.");
-                } finally {
-                    setLoadingAI(false);
-                }
-            };
-
-            const handleModuleHelp = async (module) => {
-                setModalTitle(`Aide & Astuces : ${module.label}`);
-                setModalOpen(true);
-                setLoadingAI(true);
-
-                const prompt = `
-                    Explique brièvement ce qu'on étudie dans le module "${module.label}" en BUT GEII.
-                    Donne 3 concepts clés difficiles souvent rencontrés par les étudiants.
-                    Donne une astuce de révision spécifique ("Golden Tip") pour valider ce module.
-                    Reste concis (max 150 mots).
-                `;
-
-                try {
-                    const response = await callGemini(prompt, "Tu es un professeur de GEII expérimenté.");
-                    setModalContent(response);
-                } catch (e) {
-                    setModalContent("Impossible de récupérer les infos du module.");
-                } finally {
-                    setLoadingAI(false);
-                }
-            };
-
-            // -- Calculs --
-            const calculateAverage = (ueType) => {
-                let totalPoints = 0;
-                let totalCoef = 0;
-                
-                MODULES_CONFIG.forEach(module => {
-                    const coef = ueType === 'UE21' ? module.coef21 : module.coef22;
-                    if (coef > 0) {
-                        const grade = grades[module.id] !== undefined && !isNaN(grades[module.id]) ? grades[module.id] : null;
-                        if (grade !== null) {
-                            totalPoints += grade * coef;
-                            totalCoef += coef;
+                if (isOffline) {
+                    localStorage.setItem('geii_pro_grades', JSON.stringify({ s2: dataToSave.s2, s1: dataToSave.s1 }));
+                    localStorage.setItem('geii_pro_tasks', JSON.stringify(dataToSave.tasks));
+                } else if (user && dbRef.current && window.firebaseModules) {
+                    const { doc, setDoc } = window.firebaseModules;
+                    try {
+                        await setDoc(doc(dbRef.current, 'artifacts', appIdRef.current, 'users', user.uid, 'grades'), dataToSave, { merge: true });
+                        
+                        if ((publishedStatus !== undefined ? publishedStatus : isPublished)) {
+                            const publicData = {
+                                uid: user.uid,
+                                avg21: calculateAverage('UE21', newS2 || gradesS2),
+                                avg22: calculateAverage('UE22', newS2 || gradesS2),
+                                updatedAt: new Date().toISOString()
+                            };
+                            await setDoc(doc(dbRef.current, 'artifacts', appIdRef.current, 'public', 'data', 'profiles', user.uid), publicData);
                         }
+                    } catch (e) { console.error("Save failed", e); }
+                }
+            };
+
+            // --- HANDLERS ---
+            const handleGradeChange = (id, val) => {
+                let v = parseFloat(val);
+                if (v < 0) v = 0; if (v > 20) v = 20;
+                const newGrades = { ...gradesS2, [id]: v };
+                setGradesS2(newGrades);
+                saveData(newGrades, undefined, undefined, undefined);
+            };
+
+            const toggleTask = (taskId) => {
+                const newStatus = { ...taskStatus, [taskId]: !taskStatus[taskId] };
+                setTaskStatus(newStatus);
+                saveData(undefined, undefined, newStatus, undefined);
+            };
+
+            // --- CALCULATIONS ---
+            const calculateAverage = (ueType, data = gradesS2) => {
+                let pts = 0, coef = 0;
+                MODULES_CONFIG_S2.forEach(m => {
+                    const c = ueType === 'UE21' ? m.coef21 : m.coef22;
+                    const g = data[m.id];
+                    if (c > 0 && g !== undefined && !isNaN(g)) {
+                        pts += g * c;
+                        coef += c;
                     }
                 });
-                return totalCoef === 0 ? "—" : (totalPoints / totalCoef).toFixed(2);
+                return coef === 0 ? "—" : (pts / coef).toFixed(2);
             };
 
             const avg21 = calculateAverage('UE21');
             const avg22 = calculateAverage('UE22');
+            const avgS1 = (gradesS1.ue11 && gradesS1.ue12) ? ((parseFloat(gradesS1.ue11) + parseFloat(gradesS1.ue12)) / 2).toFixed(2) : "—";
+            const avgS2 = (avg21 !== "—" && avg22 !== "—") ? ((parseFloat(avg21) + parseFloat(avg22)) / 2).toFixed(2) : "—";
+            const avgAnnual = (avgS1 !== "—" && avgS2 !== "—") ? ((parseFloat(avgS1) + parseFloat(avgS2)) / 2).toFixed(2) : "—";
 
-            const getScoreColor = (score) => {
-                if (score === "—") return "text-gray-500";
-                const val = parseFloat(score);
-                if (val < 10) return "text-red-500";
-                if (val < 12) return "text-yellow-500";
-                return "text-green-500";
+            // --- RENDER HELPERS ---
+            const groupTasksByModule = () => {
+                const groups = {};
+                TASKS_DATA.forEach(task => {
+                    if(!groups[task.module]) groups[task.module] = [];
+                    groups[task.module].push(task);
+                });
+                return groups;
             };
 
+            const getTaskStatus = (task) => {
+                const now = new Date();
+                const end = new Date(task.end);
+                const start = task.start ? new Date(task.start) : new Date(now.getFullYear(), 0, 1);
+                
+                const isDone = taskStatus[task.title + task.module];
+                if (isDone) return { color: 'text-zinc-600 line-through', label: 'FAIT', dot: 'bg-zinc-800' };
+                if (now > end) return { color: 'text-red-900', label: 'MANQUÉ', dot: 'bg-red-900' };
+                
+                const daysLeft = Math.ceil((end - now) / (1000 * 60 * 60 * 24));
+                if (daysLeft < 0) return { color: 'text-red-500', label: 'RETARD', dot: 'bg-red-500' };
+                if (daysLeft <= 3) return { color: 'text-red-500 animate-pulse', label: `J-${daysLeft} !`, dot: 'bg-red-500' };
+                if (daysLeft <= 7) return { color: 'text-orange-500', label: `J-${daysLeft}`, dot: 'bg-orange-500' };
+                if (now < start) return { color: 'text-zinc-600', label: 'BIENTÔT', dot: 'bg-zinc-800' };
+                return { color: 'text-green-500', label: `${daysLeft} Jours`, dot: 'bg-green-500' };
+            };
+
+            // --- MAIN RENDER ---
+            if (!user && loading) return <div className="h-screen flex items-center justify-center bg-black text-white flex-col gap-4"><span className="loader"></span><span className="font-mono text-xs">INITIALISATION DU TERMINAL...</span></div>;
+
             return (
-                <div className="min-h-screen pb-12">
-                    <Modal 
-                        isOpen={modalOpen} 
-                        onClose={() => setModalOpen(false)} 
-                        title={modalTitle}
-                        isLoading={loadingAI}
-                    >
-                        {modalContent}
-                    </Modal>
-
-                    {/* Header */}
-                    <header className="bg-gradient-to-r from-blue-900 via-slate-900 to-purple-900 border-b border-gray-800 p-6 shadow-lg">
-                        <div className="max-w-5xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
-                            <div>
-                                <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-                                    <Icon name="cpu" className="text-blue-400" />
-                                    My GEII Tracker <span className="text-xs bg-purple-600 px-2 py-0.5 rounded-full text-white ml-2">AI Powered ✨</span>
-                                </h1>
-                                <p className="text-blue-200 mt-1">Rafael GUILLAND-MILLE | BUT GEII - S2 2025/2026</p>
-                            </div>
-                            <div className="bg-slate-800/50 px-4 py-2 rounded-lg border border-slate-700 text-sm font-mono text-gray-300">
-                                INE: 12506736
-                            </div>
-                        </div>
-                    </header>
-
-                    <main className="max-w-5xl mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        
-                        {/* COLONNE GAUCHE */}
-                        <div className="lg:col-span-1 space-y-6">
-                            
-                            {/* Dashboard Cards */}
-                            <div className="glass-panel p-6 rounded-xl shadow-xl relative overflow-hidden group">
-                                <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
-                                    <Icon name="target" size={80} />
-                                </div>
-                                <h2 className="text-lg font-semibold mb-4 text-gray-200 border-b border-gray-700 pb-2">Synthèse S2</h2>
-                                
-                                <div className="space-y-6">
-                                    <div className="text-center p-4 bg-slate-800/50 rounded-lg border border-slate-700">
-                                        <p className="text-sm text-gray-400 mb-1">Moyenne UE21 (Concevoir)</p>
-                                        <div className={`text-4xl font-bold ${getScoreColor(avg21)}`}>{avg21}</div>
-                                    </div>
-                                    
-                                    <div className="text-center p-4 bg-slate-800/50 rounded-lg border border-slate-700">
-                                        <p className="text-sm text-gray-400 mb-1">Moyenne UE22 (Vérifier)</p>
-                                        <div className={`text-4xl font-bold ${getScoreColor(avg22)}`}>{avg22}</div>
-                                    </div>
-                                </div>
-
-                                {/* BOUTON IA */}
-                                <button 
-                                    onClick={handleAIAnalysis}
-                                    className="mt-6 w-full py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white rounded-lg font-bold shadow-lg transform hover:scale-[1.02] transition-all flex items-center justify-center gap-2 group"
-                                >
-                                    <Icon name="sparkles" size={18} className="group-hover:animate-spin" />
-                                    Analyser mon Semestre
-                                </button>
-                            </div>
-
-                            {/* Task Manager */}
-                            <div className="glass-panel p-6 rounded-xl shadow-xl">
-                                <div className="flex justify-between items-center mb-4 pb-2 border-b border-gray-700">
-                                    <h2 className="text-lg font-semibold text-gray-200 flex items-center gap-2">
-                                        <Icon name="bell-ring" className="text-yellow-500" size={18}/> 
-                                        Rappels
-                                    </h2>
-                                    <span className="bg-blue-600 text-xs px-2 py-1 rounded-full text-white">
-                                        {tasks.filter(t => !t.done).length}
-                                    </span>
-                                </div>
-                                <div className="max-h-[400px] overflow-y-auto pr-1 custom-scrollbar">
-                                    {tasks.sort((a,b) => new Date(a.deadline) - new Date(b.deadline)).map(task => (
-                                        <TaskItem key={task.id} task={task} onToggle={toggleTask} />
-                                    ))}
+                <div className="min-h-screen bg-black text-white selection:bg-white selection:text-black font-sans pb-20">
+                    
+                    {/* NAVBAR */}
+                    <nav className="border-b border-zinc-800 bg-black/80 backdrop-blur sticky top-0 z-50">
+                        <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className={`h-2 w-2 rounded-full ${isOffline ? 'bg-orange-500' : 'bg-green-500'} animate-pulse`}></div>
+                                <div className="leading-none">
+                                    <div className="font-mono font-bold tracking-widest text-sm">GEII.OS <span className="text-zinc-600">v3.0</span></div>
+                                    <div className="text-[10px] text-zinc-500 font-mono">{isOffline ? 'OFFLINE MODE' : 'CLOUD CONNECTED'}</div>
                                 </div>
                             </div>
-                        </div>
-
-                        {/* COLONNE DROITE : CALCULATEUR */}
-                        <div className="lg:col-span-2">
-                            <div className="glass-panel p-6 rounded-xl shadow-xl">
-                                <div className="flex justify-between items-center mb-6">
-                                    <div>
-                                        <h2 className="text-xl font-semibold text-white flex items-center gap-2">
-                                            <Icon name="calculator" className="text-green-400" />
-                                            Simulateur de Notes
-                                        </h2>
-                                        <p className="text-sm text-gray-400">Cliquez sur <Icon name="bot" size={14} className="inline text-purple-400"/> pour l'aide IA.</p>
-                                    </div>
-                                    <button onClick={resetData} className="text-xs text-red-400 hover:text-red-300 underline">
-                                        Réinitialiser
+                            <div className="flex gap-1 bg-zinc-900/50 p-1 rounded-lg border border-zinc-800">
+                                {[
+                                    { id: 'TASKS', icon: 'list-todo', label: 'QCM' },
+                                    { id: 'DASHBOARD', icon: 'layout-dashboard', label: 'NOTES' },
+                                    { id: 'CLASS', icon: 'users', label: 'CLASSE' }
+                                ].map(tab => (
+                                    <button 
+                                        key={tab.id}
+                                        onClick={() => setView(tab.id)}
+                                        className={`px-4 py-1.5 text-xs font-mono font-bold rounded flex items-center gap-2 transition-all ${view === tab.id ? 'bg-white text-black' : 'text-zinc-400 hover:text-white'}`}
+                                    >
+                                        <Icon name={tab.icon} size={14} /> <span className="hidden sm:inline">{tab.label}</span>
                                     </button>
+                                ))}
+                            </div>
+                        </div>
+                    </nav>
+
+                    <main className="max-w-6xl mx-auto p-4 md:p-6 space-y-6">
+                        
+                        {/* VIEW: TASKS (QCM) */}
+                        {view === 'TASKS' && (
+                            <div className="animate-in fade-in duration-500 space-y-6">
+                                <div className="flex justify-between items-end border-b border-zinc-800 pb-4">
+                                    <div>
+                                        <h2 className="text-2xl font-bold">AGENDA QCM</h2>
+                                        <p className="text-zinc-500 text-sm mt-1">Suivi des QCM Énergie, Physique & Maths</p>
+                                    </div>
+                                    <div className="text-right">
+                                        <div className="text-3xl font-mono font-bold">{Object.values(taskStatus).filter(Boolean).length}</div>
+                                        <div className="text-[10px] text-zinc-500 uppercase">QCM Terminés</div>
+                                    </div>
                                 </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {MODULES_CONFIG.map(module => (
-                                        <div key={module.id} className="bg-slate-800/40 p-3 rounded-lg border border-slate-700/50 hover:border-slate-600 transition-colors group relative">
-                                            
-                                            {/* AI Help Button */}
-                                            <button 
-                                                onClick={() => handleModuleHelp(module)}
-                                                className="absolute top-2 right-2 text-slate-500 hover:text-purple-400 transition-colors"
-                                                title="Demander à l'IA"
-                                            >
-                                                <Icon name="bot" size={16} />
-                                            </button>
-
-                                            <div className="flex justify-between items-start mb-2 pr-6">
-                                                <div>
-                                                    <span className="font-medium text-gray-200 block">{module.id}</span>
-                                                    <span className="text-xs text-gray-400 block truncate max-w-[150px]" title={module.label}>{module.label.split('-')[1] || module.label}</span>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    {Object.entries(groupTasksByModule()).map(([moduleId, tasks]) => {
+                                        const moduleInfo = MODULES_CONFIG_S2.find(m => m.id === moduleId);
+                                        const activeTasks = tasks.sort((a,b) => new Date(a.end) - new Date(b.end));
+                                        
+                                        return (
+                                            <div key={moduleId} className="pro-card flex flex-col h-full">
+                                                <div className="p-4 border-b border-zinc-800 bg-zinc-900/50 flex justify-between items-center">
+                                                    <div>
+                                                        <h3 className="text-xl font-bold">{moduleInfo?.short}</h3>
+                                                        <span className="text-[10px] font-mono text-zinc-500 bg-zinc-900 px-1 py-0.5 rounded border border-zinc-800">{moduleId}</span>
+                                                    </div>
+                                                    <span className="text-xs text-zinc-500">{moduleInfo?.label}</span>
+                                                </div>
+                                                <div className="flex-1 overflow-y-auto max-h-[400px] p-2 space-y-1">
+                                                    {activeTasks.map((task, idx) => {
+                                                        const status = getTaskStatus(task);
+                                                        const uniqueId = task.title + task.module;
+                                                        return (
+                                                            <div key={idx} 
+                                                                 onClick={() => toggleTask(uniqueId)}
+                                                                 className={`p-3 rounded border border-transparent hover:border-zinc-700 cursor-pointer transition-all group flex items-center justify-between ${taskStatus[uniqueId] ? 'opacity-50' : 'bg-black'}`}
+                                                            >
+                                                                <div className="flex items-center gap-3">
+                                                                    <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${taskStatus[uniqueId] ? 'bg-white border-white' : 'border-zinc-600 group-hover:border-white'}`}>
+                                                                        {taskStatus[uniqueId] && <Icon name="check" size={10} className="text-black" />}
+                                                                    </div>
+                                                                    <div>
+                                                                        <div className={`text-sm font-mono font-bold ${taskStatus[uniqueId] ? 'line-through text-zinc-600' : 'text-zinc-200'}`}>
+                                                                            {task.title}
+                                                                        </div>
+                                                                        <div className="text-[10px] text-zinc-500">
+                                                                            Fin: {new Date(task.end).toLocaleDateString('fr-FR')}
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                                <div className={`text-[10px] font-bold px-2 py-1 rounded bg-zinc-900 border border-zinc-800 ${status.color}`}>
+                                                                    {status.label}
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
                                                 </div>
                                             </div>
-                                            
-                                            <div className="flex items-center gap-2 mt-4">
-                                                <input 
-                                                    type="number" 
-                                                    min="0" 
-                                                    max="20" 
-                                                    step="0.1"
-                                                    placeholder="-"
-                                                    className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-center text-white focus:outline-none focus:border-blue-500 transition-colors placeholder-gray-600 font-bold"
-                                                    value={grades[module.id] || ''}
-                                                    onChange={(e) => handleGradeChange(module.id, e.target.value)}
-                                                />
-                                                <span className="text-gray-500 font-mono text-sm">/20</span>
-                                            </div>
-                                            
-                                            <div className="mt-2 flex gap-1 justify-end opacity-50 text-[10px]">
-                                                 {module.coef21 > 0 && <span className="bg-blue-900/50 text-blue-300 px-1 rounded">UE21: x{module.coef21}</span>}
-                                                 {module.coef22 > 0 && <span className="bg-purple-900/50 text-purple-300 px-1 rounded">UE22: x{module.coef22}</span>}
-                                            </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             </div>
-                        </div>
+                        )}
+
+                        {/* VIEW: DASHBOARD (NOTES) */}
+                        {view === 'DASHBOARD' && (
+                            <div className="animate-in fade-in duration-500">
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                                    <StatCard title="MOYENNE S2" value={avgS2} subtext="ESTIMATION TEMPS RÉEL" highlight />
+                                    <StatCard title="UE21" value={avg21} subtext="CONCEVOIR" />
+                                    <StatCard title="UE22" value={avg22} subtext="VÉRIFIER" />
+                                    <StatCard title="ANNÉE BUT" value={avgAnnual} subtext="OBJECTIF > 10" />
+                                </div>
+
+                                <div className="pro-card overflow-hidden">
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-left border-collapse">
+                                            <thead>
+                                                <tr className="border-b border-zinc-800 bg-zinc-900/50 text-[10px] text-zinc-500 font-mono uppercase tracking-wider">
+                                                    <th className="py-3 px-4">Module</th>
+                                                    <th className="py-3 px-4 text-center">Cat.</th>
+                                                    <th className="py-3 px-4 text-center">UE21</th>
+                                                    <th className="py-3 px-4 text-center">UE22</th>
+                                                    <th className="py-3 px-4 text-right">Note</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="text-sm font-mono divide-y divide-zinc-800">
+                                                {MODULES_CONFIG_S2.map((m) => (
+                                                    <tr key={m.id} className="hover:bg-zinc-900/30 transition-colors group">
+                                                        <td className="py-3 px-4">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="w-10 h-10 rounded bg-zinc-900 border border-zinc-800 flex items-center justify-center text-xs font-bold text-zinc-400 group-hover:text-white group-hover:border-zinc-600 transition-colors">
+                                                                    {m.short.substring(0,3)}
+                                                                </div>
+                                                                <div>
+                                                                    <div className="font-bold text-white text-base">{m.short}</div>
+                                                                    <div className="text-[10px] text-zinc-500 font-sans uppercase tracking-wider">{m.id} - {m.label}</div>
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                        <td className="py-3 px-4 text-center">
+                                                            <span className="px-2 py-0.5 rounded border border-zinc-800 text-[10px] text-zinc-400 bg-black">{m.category}</span>
+                                                        </td>
+                                                        <td className="py-3 px-4 text-center text-zinc-600">{m.coef21 > 0 ? `x${m.coef21}` : '—'}</td>
+                                                        <td className="py-3 px-4 text-center text-zinc-600">{m.coef22 > 0 ? `x${m.coef22}` : '—'}</td>
+                                                        <td className="py-3 px-4 text-right">
+                                                            <div className="relative inline-block">
+                                                                <input 
+                                                                    type="number" 
+                                                                    className="bg-transparent border-b border-zinc-800 w-20 text-right focus:outline-none focus:border-white focus:text-white transition-all text-zinc-300 font-bold text-lg py-1 placeholder-zinc-800"
+                                                                    placeholder="00"
+                                                                    value={gradesS2[m.id] || ''}
+                                                                    onChange={(e) => handleGradeChange(m.id, e.target.value)}
+                                                                />
+                                                                <span className="absolute right-0 -bottom-3 text-[9px] text-zinc-700 pointer-events-none">/20</span>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                
+                                <div className="mt-8 pro-card p-6">
+                                    <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><Icon name="archive" /> IMPORT MANUEL S1</h3>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="bg-black p-3 rounded border border-zinc-800">
+                                            <label className="text-[10px] text-zinc-500 uppercase block mb-1">Moyenne UE11</label>
+                                            <input type="number" value={gradesS1.ue11} onChange={(e) => {
+                                                const v = { ...gradesS1, ue11: e.target.value };
+                                                setGradesS1(v); saveData(undefined, v, undefined, undefined);
+                                            }} className="bg-transparent text-xl font-bold w-full outline-none font-mono" placeholder="—" />
+                                        </div>
+                                        <div className="bg-black p-3 rounded border border-zinc-800">
+                                            <label className="text-[10px] text-zinc-500 uppercase block mb-1">Moyenne UE12</label>
+                                            <input type="number" value={gradesS1.ue12} onChange={(e) => {
+                                                const v = { ...gradesS1, ue12: e.target.value };
+                                                setGradesS1(v); saveData(undefined, v, undefined, undefined);
+                                            }} className="bg-transparent text-xl font-bold w-full outline-none font-mono" placeholder="—" />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* VIEW: CLASS */}
+                        {view === 'CLASS' && (
+                            <div className="animate-in fade-in duration-500">
+                                {isOffline ? (
+                                    <div className="text-center py-20">
+                                        <Icon name="wifi-off" size={48} className="mx-auto text-zinc-700 mb-4" />
+                                        <h3 className="text-xl font-bold text-zinc-400">MODE HORS LIGNE</h3>
+                                        <p className="text-zinc-600 mt-2">Le partage de classe nécessite une connexion Firebase configurée.</p>
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div className="pro-card p-6">
+                                            <h3 className="font-bold mb-4">MON PROFIL</h3>
+                                            <div className="bg-zinc-900 p-4 rounded border border-zinc-800 mb-6 font-mono text-sm select-all">
+                                                {user?.uid}
+                                            </div>
+                                            <button onClick={() => {
+                                                const s = !isPublished; setIsPublished(s); saveData(undefined, undefined, undefined, s);
+                                            }} className={`w-full py-3 font-mono font-bold border ${isPublished ? 'bg-white text-black' : 'border-zinc-800 text-zinc-500'}`}>
+                                                {isPublished ? 'PUBLIC' : 'PRIVÉ'}
+                                            </button>
+                                        </div>
+                                        <div className="pro-card p-6">
+                                            <h3 className="font-bold mb-4">COMPARER</h3>
+                                            <div className="flex gap-2">
+                                                <input className="bg-black border border-zinc-800 flex-1 p-2 outline-none font-mono" placeholder="ID Camarade" value={friendId} onChange={e => setFriendId(e.target.value)} />
+                                                <button className="px-4 bg-white text-black font-bold" onClick={async () => {
+                                                    if(!dbRef.current) return;
+                                                    const { doc, getDoc } = window.firebaseModules;
+                                                    try {
+                                                        const s = await getDoc(doc(dbRef.current, 'artifacts', appIdRef.current, 'public', 'data', 'profiles', friendId));
+                                                        if(s.exists()) setFriendData(s.data());
+                                                        else alert("Introuvable");
+                                                    } catch(e) { alert("Erreur"); }
+                                                }}>OK</button>
+                                            </div>
+                                            {friendData && (
+                                                <div className="mt-4 p-4 bg-zinc-900 border border-zinc-800 font-mono">
+                                                    UE21: {friendData.avg21} / UE22: {friendData.avg22}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                     </main>
                 </div>
