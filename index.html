@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>GEII OS v9.4</title>
+    <title>GEII OS v9.6</title>
     
     <!-- React & Dependencies -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
@@ -26,35 +26,46 @@
             theme: {
                 extend: {
                     colors: {
-                        bg: '#09090b',
-                        card: '#18181b',
-                        cardHover: '#27272a',
-                        border: '#27272a',
-                        primary: '#3b82f6',
-                        success: '#10b981',
-                        danger: '#ef4444',
-                        warning: '#f59e0b',
+                        bg: '#000000', // True Black
+                        card: '#1C1C1E', // Apple/Revolut Dark Grey
+                        cardHover: '#2C2C2E',
+                        border: '#2C2C2E', // Subtle border
+                        primary: '#2962FF', // Electric Blue
+                        success: '#34C759', // iOS Green
+                        danger: '#FF3B30', // iOS Red
+                        warning: '#FFCC00', // iOS Yellow
                         text: '#FFFFFF',
-                        subtext: '#a1a1aa',
+                        subtext: '#8E8E93', // Cool Grey
                     },
                     fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                        mono: ['JetBrains Mono', 'monospace'],
+                        sans: ['-apple-system', 'BlinkMacSystemFont', 'San Francisco', 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
+                        mono: ['SF Mono', 'Menlo', 'Monaco', 'Courier New', 'monospace'],
+                    },
+                    fontSize: {
+                        'xxs': '0.65rem',
                     }
                 }
             }
         }
     </script>
     <style>
-        body { background-color: #09090b; color: #fff; -webkit-font-smoothing: antialiased; }
-        .glass { background: rgba(39, 39, 42, 0.4); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.05); }
-        .glass-modal { background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(8px); }
+        body { background-color: #000; color: #fff; -webkit-font-smoothing: antialiased; }
+        /* Fintech Card Style: Solid, subtle border, rounded */
+        .fintech-card { 
+            background-color: #1C1C1E; 
+            border-radius: 1.5rem; /* Rounded-3xl roughly */
+            /* No heavy border, just cleaner look */
+        }
+        .fintech-card:active { transform: scale(0.98); transition: transform 0.1s ease; }
+        
+        .glass-modal { background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(20px); }
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
         .page-enter { animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .pulse-active { animation: pulseBorder 2s infinite; }
-        @keyframes pulseBorder { 0% { border-color: rgba(59, 130, 246, 0.5); } 50% { border-color: rgba(59, 130, 246, 1); } 100% { border-color: rgba(59, 130, 246, 0.5); } }
+        
+        /* Typography Polish */
+        h1, h2, h3, .font-bold { letter-spacing: -0.02em; } 
     </style>
 </head>
 <body>
@@ -189,11 +200,11 @@
         // --- COMPONENTS ---
 
         const BottomNav = ({ active, setView }) => (
-            <div className="fixed bottom-0 w-full bg-[#09090b]/90 backdrop-blur-xl border-t border-border pb-safe pt-2 px-4 flex justify-between z-50">
-                {[{ id: 'HOME', icon: 'layout-grid', label: 'Accueil' }, { id: 'NOTES', icon: 'graduation-cap', label: 'Notes' }, { id: 'AGENDA', icon: 'calendar', label: 'Agenda' }, { id: 'LIFE', icon: 'coffee', label: 'Vie Étud.' }, { id: 'SETTINGS', icon: 'user', label: 'Compte' }].map(item => (
-                    <button key={item.id} onClick={() => setView(item.id)} className={`flex flex-col items-center p-2 transition-colors active:scale-90 duration-200 ${active === item.id ? 'text-primary' : 'text-subtext'}`}>
-                        <Icon name={item.icon} size={24} className={active === item.id ? 'fill-primary/20' : ''}/>
-                        <span className="text-[10px] mt-1 font-medium">{item.label}</span>
+            <div className="fixed bottom-0 w-full bg-[#121212]/90 backdrop-blur-xl border-t border-white/5 pb-safe pt-2 px-6 flex justify-between z-50">
+                {[{ id: 'HOME', icon: 'layout-grid', label: 'Accueil' }, { id: 'NOTES', icon: 'graduation-cap', label: 'Notes' }, { id: 'AGENDA', icon: 'calendar', label: 'Agenda' }, { id: 'LIFE', icon: 'coffee', label: 'Campus' }, { id: 'SETTINGS', icon: 'user', label: 'Profil' }].map(item => (
+                    <button key={item.id} onClick={() => setView(item.id)} className={`flex flex-col items-center p-2 transition-all duration-200 active:scale-90 ${active === item.id ? 'text-primary' : 'text-subtext hover:text-white'}`}>
+                        <Icon name={item.icon} size={22} className={`mb-1 ${active === item.id ? 'stroke-[2.5px]' : 'stroke-[1.5px]'}`}/>
+                        <span className="text-[10px] font-medium tracking-tight">{item.label}</span>
                     </button>
                 ))}
             </div>
@@ -211,27 +222,27 @@
 
             return (
                 <div className="fixed inset-0 z-[60] flex items-end justify-center glass-modal animate-in fade-in duration-200">
-                    <div className="bg-card w-full max-w-md rounded-t-3xl border-t border-border flex flex-col max-h-[90vh]">
-                        <div className="p-4 flex justify-between items-center border-b border-border bg-cardHover rounded-t-3xl">
-                            <div><h3 className="font-bold text-lg text-white">{module.label} <span className={`text-xl font-mono ${getGradeColor(avg)}`}>{avg}</span></h3><p className="text-xs text-subtext">{module.id} • {module.cat}</p></div>
-                            <button onClick={onClose} className="p-2 bg-white/10 rounded-full"><Icon name="x" size={20}/></button>
+                    <div className="bg-card w-full max-w-md rounded-t-[2rem] border-t border-white/10 flex flex-col max-h-[90vh]">
+                        <div className="p-6 flex justify-between items-center border-b border-white/5 bg-[#1C1C1E]">
+                            <div><h3 className="font-bold text-xl text-white tracking-tight">{module.label} <span className={`ml-2 text-2xl font-mono ${getGradeColor(avg)}`}>{avg}</span></h3><p className="text-xs text-subtext uppercase tracking-wider font-semibold mt-1">{module.id} • {module.cat}</p></div>
+                            <button onClick={onClose} className="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center hover:bg-white/20 transition-colors"><Icon name="x" size={18}/></button>
                         </div>
-                        <div className="p-4 overflow-y-auto pb-safe space-y-4">
-                            <div className="bg-primary/10 p-4 rounded-xl border border-primary/20 space-y-3">
-                                <label className="text-xs font-bold text-primary uppercase">Ajouter</label>
-                                <div className="flex gap-2">
-                                    <input value={name} onChange={e=>setName(e.target.value)} placeholder="Titre" className="flex-1 bg-black/40 border border-white/10 rounded-lg p-3 text-sm focus:border-primary outline-none" />
-                                    <input type="number" value={val} onChange={e=>setVal(e.target.value)} placeholder="/20" className="w-16 bg-black/40 border border-white/10 rounded-lg p-3 text-sm font-bold text-center focus:border-primary outline-none" />
-                                    <input type="number" value={coef} onChange={e=>setCoef(e.target.value)} placeholder="Cf" className="w-14 bg-black/40 border border-white/10 rounded-lg p-3 text-sm text-center text-subtext focus:border-primary outline-none" />
+                        <div className="p-6 overflow-y-auto pb-safe space-y-6">
+                            <div className="bg-primary/5 p-5 rounded-2xl border border-primary/20 space-y-4">
+                                <label className="text-xs font-bold text-primary uppercase tracking-wider">Ajouter une note</label>
+                                <div className="flex gap-3">
+                                    <input value={name} onChange={e=>setName(e.target.value)} placeholder="Titre (ex: DS1)" className="flex-1 bg-black/50 border border-white/10 rounded-xl p-3 text-sm focus:border-primary outline-none placeholder-white/20" />
+                                    <input type="number" value={val} onChange={e=>setVal(e.target.value)} placeholder="20" className="w-16 bg-black/50 border border-white/10 rounded-xl p-3 text-sm font-bold text-center focus:border-primary outline-none placeholder-white/20" />
+                                    <input type="number" value={coef} onChange={e=>setCoef(e.target.value)} placeholder="1" className="w-14 bg-black/50 border border-white/10 rounded-xl p-3 text-sm text-center text-subtext focus:border-primary outline-none placeholder-white/20" />
                                 </div>
-                                <button onClick={add} className="w-full bg-primary text-white py-3 rounded-lg font-bold text-sm">Confirmer</button>
+                                <button onClick={add} className="w-full bg-primary text-white py-3.5 rounded-xl font-bold text-sm shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all active:scale-95">Confirmer</button>
                             </div>
-                            <div className="space-y-2">
-                                <label className="text-xs font-bold text-subtext uppercase">Notes</label>
-                                {localGrades.length===0 ? <p className="text-center text-sm text-subtext py-4">Vide</p> : localGrades.slice().reverse().map(g=>(
-                                    <div key={g.id} className="flex justify-between items-center bg-cardHover p-3 rounded-xl border border-border">
-                                        <div><div className="font-bold text-sm">{g.name}</div><div className="text-xs text-subtext">Coef {g.coef}</div></div>
-                                        <div className="flex items-center gap-3"><span className={`font-mono font-bold text-lg ${getGradeColor(g.value)}`}>{g.value}</span><button onClick={()=>remove(g.id)} className="text-danger opacity-50 hover:opacity-100"><Icon name="trash-2" size={16}/></button></div>
+                            <div className="space-y-3">
+                                <label className="text-xs font-bold text-subtext uppercase tracking-wider px-1">Historique</label>
+                                {localGrades.length===0 ? <p className="text-center text-sm text-subtext py-6 bg-white/5 rounded-xl border-dashed border border-white/10">Aucune note enregistrée</p> : localGrades.slice().reverse().map(g=>(
+                                    <div key={g.id} className="flex justify-between items-center bg-[#252525] p-4 rounded-xl border border-white/5">
+                                        <div><div className="font-bold text-sm text-white">{g.name}</div><div className="text-xs text-subtext font-medium mt-0.5">Coef {g.coef}</div></div>
+                                        <div className="flex items-center gap-4"><span className={`font-mono font-bold text-lg ${getGradeColor(g.value)}`}>{g.value}</span><button onClick={()=>remove(g.id)} className="text-danger opacity-40 hover:opacity-100 transition-opacity"><Icon name="trash-2" size={18}/></button></div>
                                     </div>
                                 ))}
                             </div>
@@ -244,7 +255,7 @@
         const SemesterSelector = ({ current, onChange }) => (
             <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-2">
                 {[1, 2, 3, 4].map(s => (
-                    <button key={s} onClick={() => onChange(s)} className={`px-4 py-2 rounded-full text-xs font-bold border transition-all whitespace-nowrap ${current === s ? 'bg-white text-black border-white' : 'bg-card border-border text-subtext'}`}>
+                    <button key={s} onClick={() => onChange(s)} className={`px-5 py-2.5 rounded-full text-xs font-bold border transition-all whitespace-nowrap ${current === s ? 'bg-white text-black border-white' : 'bg-[#1C1C1E] border-white/10 text-subtext hover:text-white'}`}>
                         Semestre {s}
                     </button>
                 ))}
@@ -252,37 +263,69 @@
         );
 
         const HistoryInput = ({ label, value, onChange }) => (
-            <div className="bg-card p-4 rounded-2xl border border-border flex justify-between items-center">
+            <div className="fintech-card p-5 border border-white/5 flex justify-between items-center">
                 <span className="font-bold text-sm text-subtext">{label}</span>
-                <input type="number" value={value || ''} onChange={e => onChange(e.target.value)} className="w-20 bg-black/30 border border-white/10 rounded-lg p-2 text-center font-mono font-bold text-white focus:border-primary outline-none" placeholder="--" />
+                <input type="number" value={value || ''} onChange={e => onChange(e.target.value)} className="w-20 bg-black/50 border border-white/10 rounded-lg p-2.5 text-center font-mono font-bold text-white focus:border-primary outline-none" placeholder="--" />
             </div>
         );
 
-        // --- SMART AGENDA WIDGETS ---
-        const SmartAgendaList = ({ events, profile, onExpand }) => {
+        const TargetSimulator = () => {
+            const [currentAvg, setCurrentAvg] = useState('');
+            const [target, setTarget] = useState('');
+            const [coefNext, setCoefNext] = useState('');
+            const [result, setResult] = useState(null);
+
+            const calculate = () => {
+                const cur = parseFloat(currentAvg);
+                const tar = parseFloat(target);
+                const coef = parseFloat(coefNext);
+                if (cur && tar && coef) {
+                    const needed = ((tar * (1 + coef)) - cur) / coef;
+                    setResult(needed.toFixed(2));
+                }
+            };
+
+            return (
+                <div className="fintech-card p-5 border border-white/5 space-y-4">
+                    <h3 className="font-bold text-sm flex gap-2 text-primary uppercase tracking-wider items-center"><Icon name="target" size={16}/> Simulateur Objectif</h3>
+                    <div className="flex gap-3">
+                        <div className="flex-1 space-y-1">
+                            <label className="text-[10px] text-subtext uppercase font-bold">Actuel</label>
+                            <input type="number" value={currentAvg} onChange={e=>setCurrentAvg(e.target.value)} className="w-full bg-black/50 p-2.5 rounded-lg text-sm border border-white/10 text-white font-mono placeholder-white/20"/>
+                        </div>
+                         <div className="flex-1 space-y-1">
+                            <label className="text-[10px] text-subtext uppercase font-bold">Cible</label>
+                            <input type="number" value={target} onChange={e=>setTarget(e.target.value)} className="w-full bg-black/50 p-2.5 rounded-lg text-sm border border-white/10 text-white font-mono placeholder-white/20"/>
+                        </div>
+                         <div className="w-16 space-y-1">
+                            <label className="text-[10px] text-subtext uppercase font-bold">Coef</label>
+                            <input type="number" value={coefNext} onChange={e=>setCoefNext(e.target.value)} className="w-full bg-black/50 p-2.5 rounded-lg text-sm border border-white/10 text-white font-mono placeholder-white/20"/>
+                        </div>
+                    </div>
+                    <div className="flex items-center justify-between pt-2">
+                        <button onClick={calculate} className="bg-white/10 py-2 px-4 rounded-lg text-xs font-bold hover:bg-white/20 transition-colors">Calculer</button>
+                        {result && <div className="text-sm font-medium">Il faut : <span className={`font-bold font-mono text-lg ml-1 ${result > 20 ? 'text-danger' : 'text-success'}`}>{result}/20</span></div>}
+                    </div>
+                </div>
+            );
+        };
+
+        const AgendaList = ({ events, profile, onExpand }) => {
             const [weekOffset, setWeekOffset] = useState(0);
 
-            // Calculer le début de la semaine (Lundi) en fonction de l'offset
             const getWeekRange = (offset) => {
                 const now = new Date();
-                const day = now.getDay(); // 0 is Sunday
-                
-                // Adjust to make Monday the first day
+                const day = now.getDay(); 
                 const diff = now.getDate() - day + (day === 0 ? -6 : 1) + (offset * 7);
-                
                 const monday = new Date(now.setDate(diff));
                 monday.setHours(0,0,0,0);
-                
                 const sunday = new Date(monday);
                 sunday.setDate(monday.getDate() + 6);
                 sunday.setHours(23,59,59,999);
-                
                 return { start: monday, end: sunday };
             };
 
             const { start, end } = getWeekRange(weekOffset);
-
-            // Filter events for the selected week
             const weekEvents = events.filter(e => e.start >= start && e.start <= end);
 
             const grouped = weekEvents.reduce((acc, event) => {
@@ -292,94 +335,80 @@
                 return acc;
             }, {});
 
-            // Helper: Déterminer le type et la couleur du cours
+            // Sort keys
+            const sortedDates = Object.keys(grouped).sort((a,b) => grouped[a][0].start - grouped[b][0].start);
+
             const getCourseStyle = (summary) => {
                 const s = summary.toLowerCase();
-                if (s.includes('ds') || s.includes('exam') || s.includes('controle')) return { type: 'DS', color: 'border-l-danger bg-danger/5 text-danger', badge: 'bg-danger text-white' };
-                if (s.includes('amphi') || s.includes('cm')) return { type: 'CM', color: 'border-l-purple-500 bg-purple-500/5', badge: 'bg-purple-500/20 text-purple-400' };
-                if (s.includes('tp')) return { type: 'TP', color: 'border-l-blue-500 bg-blue-500/5', badge: 'bg-blue-500/20 text-blue-400' };
-                if (s.includes('td')) return { type: 'TD', color: 'border-l-green-500 bg-green-500/5', badge: 'bg-green-500/20 text-green-400' };
-                return { type: 'Cours', color: 'border-l-white/20 bg-white/5', badge: 'bg-white/10 text-subtext' };
+                if (s.includes('ds') || s.includes('exam') || s.includes('controle')) return { type: 'EXAMEN', color: 'border-l-danger bg-danger/5 text-danger', badge: 'bg-danger/10 text-danger border border-danger/20' };
+                if (s.includes('amphi') || s.includes('cm')) return { type: 'CM', color: 'border-l-purple-500 bg-purple-500/5', badge: 'bg-purple-500/10 text-purple-400 border border-purple-500/20' };
+                if (s.includes('tp')) return { type: 'TP', color: 'border-l-blue-500 bg-blue-500/5', badge: 'bg-blue-500/10 text-blue-400 border border-blue-500/20' };
+                if (s.includes('td')) return { type: 'TD', color: 'border-l-green-500 bg-green-500/5', badge: 'bg-green-500/10 text-green-400 border border-green-500/20' };
+                return { type: 'Cours', color: 'border-l-white/20 bg-white/5', badge: 'bg-white/10 text-subtext border border-white/10' };
             };
 
             return (
                 <div className="space-y-4">
-                    {/* Navigation Semaine */}
-                    <div className="flex justify-between items-center bg-card p-2 rounded-xl border border-border">
-                        <button onClick={() => setWeekOffset(weekOffset - 1)} className="p-2 hover:bg-white/5 rounded-lg"><Icon name="chevron-left" size={20}/></button>
+                    <div className="flex justify-between items-center fintech-card p-3 border border-white/5">
+                        <button onClick={() => setWeekOffset(weekOffset - 1)} className="p-2 hover:bg-white/10 rounded-lg transition-colors"><Icon name="chevron-left" size={20}/></button>
                         <div className="text-center">
-                            <div className="text-[10px] text-subtext uppercase font-bold">Semaine du</div>
-                            <div className="text-sm font-bold">{start.toLocaleDateString('fr-FR', {day: 'numeric', month: 'short'})}</div>
+                            <div className="text-[10px] text-subtext uppercase font-bold tracking-wider">Semaine du</div>
+                            <div className="text-sm font-bold text-white">{start.toLocaleDateString('fr-FR', {day: 'numeric', month: 'short'})}</div>
                         </div>
-                        <button onClick={() => setWeekOffset(weekOffset + 1)} className="p-2 hover:bg-white/5 rounded-lg"><Icon name="chevron-right" size={20}/></button>
+                        <button onClick={() => setWeekOffset(weekOffset + 1)} className="p-2 hover:bg-white/10 rounded-lg transition-colors"><Icon name="chevron-right" size={20}/></button>
                     </div>
 
-                    {/* Expand Button for Home View */}
                     {onExpand && (
                     <div className="flex justify-end">
-                        <button onClick={onExpand} className="bg-white/5 border border-white/10 text-xs px-3 py-2 rounded-lg flex items-center gap-2 hover:bg-white/10 transition-colors">
-                            <Icon name="maximize-2" size={14}/> Agrandir l'agenda
+                        <button onClick={onExpand} className="bg-white/5 border border-white/10 text-xs font-bold px-3 py-2 rounded-lg flex items-center gap-2 hover:bg-white/10 transition-colors uppercase tracking-wider text-subtext hover:text-white">
+                            <Icon name="maximize-2" size={12}/> Agrandir
                         </button>
                     </div>
                     )}
 
-                    {/* Liste des cours */}
-                    {Object.keys(grouped).length === 0 ? (
-                        <div className="text-center py-10 text-subtext flex flex-col items-center gap-2">
-                            <Icon name="coffee" size={32} className="opacity-50"/>
-                            <span>Semaine libre !</span>
+                    {sortedDates.length === 0 ? (
+                        <div className="text-center py-12 text-subtext flex flex-col items-center gap-3 opacity-50">
+                            <Icon name="coffee" size={32}/>
+                            <span className="text-sm font-medium">Semaine libre !</span>
                         </div>
                     ) : (
-                        Object.entries(grouped).map(([date, dayEvents], index) => (
-                            <div key={index} className="animate-in slide-in-from-bottom-2 fade-in duration-500">
-                                <h3 className="text-xs font-bold text-primary uppercase sticky top-0 bg-bg/95 backdrop-blur py-2 z-10 flex items-center gap-2">
-                                    <div className="w-2 h-2 rounded-full bg-primary"></div> {date}
-                                </h3>
-                                <div className="space-y-3 mt-1">
-                                    {dayEvents.map((e, i) => {
-                                        const style = getCourseStyle(e.summary);
-                                        const now = new Date();
-                                        const isLive = now >= e.start && now <= e.end;
-                                        
-                                        // Détection de trou (Pause) si ce n'est pas le dernier cours
-                                        const nextEvent = dayEvents[i+1];
-                                        const hasGap = nextEvent && (nextEvent.start - e.end) > 45 * 60 * 1000; // > 45min
-
-                                        return (
-                                            <div key={i}>
-                                                <div className={`relative bg-card p-3 rounded-xl border border-border border-l-4 ${style.color} ${isLive ? 'pulse-active ring-1 ring-primary/50' : ''}`}>
-                                                    {isLive && <div className="absolute top-2 right-2 px-2 py-0.5 bg-primary text-white text-[9px] font-bold rounded-full animate-pulse">EN COURS</div>}
+                        sortedDates.map((date, index) => {
+                            const dayEvents = grouped[date];
+                            return (
+                                <div key={index} className="animate-in slide-in-from-bottom-4 fade-in duration-500">
+                                    <h3 className="text-xs font-bold text-primary uppercase sticky top-0 bg-bg/95 backdrop-blur-xl py-3 z-10 flex items-center gap-2 border-b border-transparent">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-primary"></div> {date}
+                                    </h3>
+                                    <div className="space-y-3 mt-1">
+                                        {dayEvents.map((e, i) => {
+                                            const style = getCourseStyle(e.summary);
+                                            const now = new Date();
+                                            const isLive = now >= e.start && now <= e.end;
+                                            
+                                            return (
+                                                <div key={i} className={`relative fintech-card p-4 border border-white/5 border-l-4 ${style.color} ${isLive ? 'ring-1 ring-primary/50 shadow-[0_0_15px_rgba(59,130,246,0.3)]' : ''}`}>
+                                                    {isLive && <div className="absolute top-3 right-3 px-2 py-0.5 bg-primary text-white text-[9px] font-bold rounded-full animate-pulse shadow-lg shadow-primary/40">EN COURS</div>}
                                                     <div className="flex gap-4">
-                                                        <div className="flex flex-col items-center justify-center min-w-[50px] border-r border-white/5 pr-3">
+                                                        <div className="flex flex-col items-center justify-center min-w-[50px] border-r border-white/5 pr-4 py-1">
                                                             <span className="font-bold text-sm text-white">{e.start.getHours()}h{e.start.getMinutes().toString().padStart(2, '0')}</span>
-                                                            <span className="text-[10px] text-subtext">{e.end.getHours()}h{e.end.getMinutes().toString().padStart(2, '0')}</span>
+                                                            <div className="h-4 w-0.5 bg-white/10 rounded-full my-0.5"></div>
+                                                            <span className="text-[10px] text-subtext font-medium">{e.end.getHours()}h{e.end.getMinutes().toString().padStart(2, '0')}</span>
                                                         </div>
-                                                        <div className="overflow-hidden flex-1">
-                                                            <div className="flex justify-between items-start">
-                                                                <div className="font-bold text-sm text-white truncate pr-6">{e.summary}</div>
-                                                            </div>
-                                                            <div className="flex items-center gap-2 mt-1">
-                                                                <span className={`text-[9px] px-1.5 py-0.5 rounded ${style.badge}`}>{style.type}</span>
-                                                                <div className="text-xs text-subtext truncate flex gap-1 items-center"><Icon name="map-pin" size={10}/> {e.location || 'Salle inconnue'}</div>
+                                                        <div className="overflow-hidden flex-1 flex flex-col justify-center">
+                                                            <div className="font-bold text-sm text-white truncate pr-8 leading-tight mb-1.5">{e.summary}</div>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold tracking-wide uppercase ${style.badge}`}>{style.type}</span>
+                                                                <div className="text-xs text-subtext truncate flex gap-1 items-center font-medium"><Icon name="map-pin" size={10}/> {e.location || 'Salle inconnue'}</div>
                                                             </div>
                                                         </div>
                                                     </div>
                                                 </div>
-                                                {hasGap && (
-                                                    <div className="flex items-center justify-center my-2 gap-2 opacity-50">
-                                                        <div className="h-8 w-[1px] bg-white/20"></div>
-                                                        <div className="text-[10px] text-subtext italic bg-white/5 px-3 py-1 rounded-full flex items-center gap-1">
-                                                            <Icon name="coffee" size={10}/> Pause / Révisions ({Math.round((nextEvent.start - e.end)/60000)} min)
-                                                        </div>
-                                                        <div className="h-8 w-[1px] bg-white/20"></div>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        );
-                                    })}
+                                            );
+                                        })}
+                                    </div>
                                 </div>
-                            </div>
-                        ))
+                            );
+                        })
                     )}
                 </div>
             );
@@ -403,12 +432,15 @@
                         else if (diffDays <= 7) { text = `J-${diffDays}`; color = "text-warning"; }
 
                         return (
-                            <div key={i} onClick={() => onToggle(uid)} className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${isDone ? 'bg-black/30 border-white/5 opacity-60' : 'bg-card border-border hover:bg-cardHover'}`}>
-                                <div className="flex items-center gap-3">
-                                    <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${isDone ? 'bg-success border-success' : 'border-subtext'}`}>{isDone && <Icon name="check" size={12} className="text-black"/>}</div>
+                            <div key={i} onClick={() => onToggle(uid)} className={`flex items-center justify-between p-4 rounded-2xl border cursor-pointer transition-all active:scale-98 ${isDone ? 'bg-black/30 border-white/5 opacity-50' : 'fintech-card border-white/5 hover:bg-cardHover'}`}>
+                                <div className="flex items-center gap-4">
+                                    <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${isDone ? 'bg-success border-success' : 'border-subtext/50'}`}>{isDone && <Icon name="check" size={12} className="text-black stroke-[3px]"/>}</div>
                                     <div>
                                         <div className={`font-bold text-sm ${isDone ? 'line-through text-subtext' : 'text-white'}`}>{task.title}</div>
-                                        <div className="text-xs text-subtext">{task.module} • {new Date(task.end).toLocaleDateString()}</div>
+                                        <div className="text-xs text-subtext font-medium mt-0.5 flex gap-1.5 items-center">
+                                            <span className="bg-white/10 px-1.5 py-0 rounded text-[9px] text-white/80">{getModuleName(task.module)}</span>
+                                            <span>{new Date(task.end).toLocaleDateString()}</span>
+                                        </div>
                                     </div>
                                 </div>
                                 <div className={`text-xs font-mono font-bold ${color}`}>{text}</div>
@@ -438,47 +470,24 @@
 
             const minutes = Math.floor(timeLeft / 60);
             const seconds = timeLeft % 60;
+            const progress = 100 - (timeLeft / (isBreak ? 5*60 : 25*60)) * 100;
 
             return (
                 <div onClick={(e) => e.stopPropagation()} className="w-full h-full flex flex-col justify-between items-center">
-                     <div className="text-xs font-bold uppercase text-subtext mb-1">{isBreak ? 'Pause ☕' : 'Focus 🔥'}</div>
-                     <div className="text-2xl font-mono font-bold mb-2">{minutes}:{seconds < 10 ? `0${seconds}` : seconds}</div>
+                     <div className="text-xs font-bold uppercase text-subtext mb-1 flex items-center gap-1">{isBreak ? 'Pause ☕' : 'Focus 🔥'}</div>
+                     <div className="relative w-20 h-20 flex items-center justify-center">
+                        <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 36 36">
+                            <path className="text-white/10" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeWidth="2"/>
+                            <path className={`${isBreak ? 'text-green-500' : 'text-danger'} transition-all duration-1000`} strokeDasharray={`${progress}, 100`} d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeWidth="2"/>
+                        </svg>
+                        <div className="text-lg font-mono font-bold tracking-tighter">{minutes}:{seconds < 10 ? `0${seconds}` : seconds}</div>
+                     </div>
                      <button 
                         onClick={() => setIsActive(!isActive)} 
-                        className={`px-3 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${isActive ? 'bg-red-500/20 text-red-500' : 'bg-primary/20 text-primary'}`}
+                        className={`w-full py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors ${isActive ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-primary hover:bg-blue-600 text-white'}`}
                      >
-                        {isActive ? 'Stop' : 'Start'}
+                        {isActive ? 'Pause' : 'Start'}
                      </button>
-                </div>
-            );
-        };
-
-        const TargetSimulator = () => {
-            const [currentAvg, setCurrentAvg] = useState('');
-            const [target, setTarget] = useState('');
-            const [coefNext, setCoefNext] = useState('');
-            const [result, setResult] = useState(null);
-
-            const calculate = () => {
-                const cur = parseFloat(currentAvg);
-                const tar = parseFloat(target);
-                const coef = parseFloat(coefNext);
-                if (cur && tar && coef) {
-                    const needed = ((tar * (1 + coef)) - cur) / coef;
-                    setResult(needed.toFixed(2));
-                }
-            };
-
-            return (
-                <div className="bg-card p-4 rounded-2xl border border-border space-y-3">
-                    <h3 className="font-bold text-sm flex gap-2 text-primary"><Icon name="target" size={16}/> Simulateur Objectif</h3>
-                    <div className="flex gap-2">
-                        <input type="number" placeholder="Moy. Actuelle" value={currentAvg} onChange={e=>setCurrentAvg(e.target.value)} className="w-full bg-black/30 p-2 rounded text-xs border border-white/10"/>
-                        <input type="number" placeholder="Visé" value={target} onChange={e=>setTarget(e.target.value)} className="w-full bg-black/30 p-2 rounded text-xs border border-white/10"/>
-                        <input type="number" placeholder="Coef" value={coefNext} onChange={e=>setCoefNext(e.target.value)} className="w-16 bg-black/30 p-2 rounded text-xs border border-white/10"/>
-                    </div>
-                    <button onClick={calculate} className="w-full bg-white/5 py-1 rounded text-xs font-bold hover:bg-white/10">Calculer</button>
-                    {result && <div className="text-center text-sm">Il faut : <span className={`font-bold ${result > 20 ? 'text-danger' : 'text-success'}`}>{result}/20</span></div>}
                 </div>
             );
         };
@@ -491,9 +500,15 @@
                     .then(d => setData({ temp: Math.round(d.current_weather.temperature), icon: 'sun' })).catch(()=>{});
             }, []);
             return (
-                <div className="glass p-4 rounded-2xl flex items-center justify-between">
-                    <div><div className="text-xs text-subtext font-bold uppercase">Villeurbanne</div><div className="text-3xl font-bold mt-1">{data?.temp || '--'}°</div></div>
-                    <Icon name="cloud-sun" size={32} className="text-yellow-400"/>
+                <div className="fintech-card p-4 flex flex-col justify-between h-full border border-white/5">
+                    <div className="flex justify-between items-start">
+                        <div className="text-xs text-subtext font-bold uppercase tracking-wider">Météo</div>
+                        <Icon name="cloud-sun" size={20} className="text-yellow-400"/>
+                    </div>
+                    <div>
+                        <div className="text-3xl font-bold tracking-tighter">{data?.temp || '--'}°</div>
+                        <div className="text-[10px] text-subtext font-medium mt-1">Villeurbanne</div>
+                    </div>
                 </div>
             );
         };
@@ -505,13 +520,13 @@
             const progress = Math.min(100, Math.max(0, ((now - start) / (end - start)) * 100));
             
             return (
-                <div className="bg-card p-4 rounded-2xl border border-white/5">
-                    <div className="flex justify-between items-end mb-2">
-                        <span className="text-xs text-subtext font-bold uppercase">Semestre 2</span>
+                <div className="fintech-card p-5 border border-white/5">
+                    <div className="flex justify-between items-end mb-3">
+                        <span className="text-xs text-subtext font-bold uppercase tracking-wider">Semestre 2</span>
                         <span className="text-xs font-mono font-bold text-primary">{Math.round(progress)}%</span>
                     </div>
-                    <div className="w-full bg-white/10 rounded-full h-2">
-                        <div className="bg-primary h-2 rounded-full transition-all duration-1000" style={{width: `${progress}%`}}></div>
+                    <div className="w-full bg-black/50 rounded-full h-2 overflow-hidden border border-white/5">
+                        <div className="bg-primary h-2 rounded-full transition-all duration-1000 shadow-[0_0_10px_rgba(59,130,246,0.5)]" style={{width: `${progress}%`}}></div>
                     </div>
                 </div>
             );
@@ -525,34 +540,34 @@
                 .filter(t => t.diff > 0)
                 .sort((a,b) => a.diff - b.diff)[0];
 
-            if (!upcoming) return <div className="glass p-4 rounded-2xl flex items-center justify-center text-xs text-subtext">Aucune deadline proche</div>;
+            if (!upcoming) return <div className="fintech-card p-4 flex items-center justify-center text-xs text-subtext border border-white/5 h-full">Aucun devoir 🔥</div>;
 
             const days = Math.ceil(upcoming.diff / (1000 * 60 * 60 * 24));
             
             return (
-                <div className="glass p-4 rounded-2xl flex flex-col justify-between border-l-4 border-l-warning">
+                <div className="fintech-card p-4 flex flex-col justify-between border border-white/5 border-l-4 border-l-warning h-full">
                     <div className="flex justify-between items-start">
-                        <span className="text-xs font-bold text-warning uppercase">Prochain Rendu</span>
-                        <span className="text-xs bg-warning/10 text-warning px-2 py-0.5 rounded font-bold">J-{days}</span>
+                        <span className="text-xs font-bold text-warning uppercase tracking-wider">Urgent</span>
+                        <span className="text-[10px] bg-warning/10 text-warning px-2 py-0.5 rounded-full font-bold">J-{days}</span>
                     </div>
                     <div>
-                        <div className="font-bold text-lg truncate">{upcoming.title}</div>
-                        <div className="text-xs text-subtext">{upcoming.module}</div>
+                        <div className="font-bold text-sm truncate">{upcoming.title}</div>
+                        <div className="text-[10px] text-subtext font-medium mt-0.5">{getModuleName(upcoming.module)}</div>
                     </div>
                 </div>
             );
         };
 
         const Scratchpad = ({ note, onChange }) => (
-            <div className="glass p-4 rounded-2xl flex flex-col gap-2">
-                <div className="flex items-center gap-2 text-xs font-bold text-subtext uppercase">
-                    <Icon name="edit-3" size={14}/> Notes Rapides
+            <div className="fintech-card p-4 flex flex-col gap-2 border border-white/5 h-full">
+                <div className="flex items-center gap-2 text-xs font-bold text-subtext uppercase tracking-wider">
+                    <Icon name="edit-3" size={14}/> Notes
                 </div>
                 <textarea 
                     value={note} 
                     onChange={e => onChange(e.target.value)} 
-                    placeholder="Salle, code, rappel..." 
-                    className="bg-transparent border-none outline-none text-sm resize-none h-16 w-full text-white placeholder-white/20"
+                    placeholder="Code, salle, mémo..." 
+                    className="bg-transparent border-none outline-none text-xs resize-none h-full w-full text-white placeholder-white/20 leading-relaxed font-medium"
                 />
             </div>
         );
@@ -561,33 +576,33 @@
             const hour = new Date().getHours();
             const isOpen = hour >= 11 && hour < 14;
             return (
-                <a href={LINKS.CROUS} target="_blank" className="bg-[#1c1c1e] p-4 rounded-2xl border border-white/5 flex flex-col justify-between active:scale-95 transition-transform">
+                <a href={LINKS.CROUS} target="_blank" className="fintech-card p-5 border border-white/5 flex flex-col justify-between active:scale-95 transition-transform hover:bg-cardHover">
                     <div className="flex justify-between items-start">
-                        <Icon name="utensils" className="text-orange-500" />
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full border ${isOpen ? 'bg-success/10 text-success border-success/20' : 'bg-danger/10 text-danger border-danger/20'}`}>
-                            {isOpen ? 'Ouvert' : 'Fermé'}
+                        <div className="w-10 h-10 rounded-full bg-orange-500/10 flex items-center justify-center text-orange-500"><Icon name="utensils" size={20}/></div>
+                        <span className={`text-[10px] px-2 py-1 rounded-full font-bold ${isOpen ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'}`}>
+                            {isOpen ? 'OUVERT' : 'FERMÉ'}
                         </span>
                     </div>
                     <div>
-                        <div className="font-bold text-sm">Crous Gratte-Ciel</div>
-                        <div className="text-[10px] text-subtext flex items-center gap-1">Voir le menu <Icon name="external-link" size={10}/></div>
+                        <div className="font-bold text-base mt-2">Resto U</div>
+                        <div className="text-xs text-subtext font-medium flex items-center gap-1 mt-1">Menu du jour <Icon name="arrow-up-right" size={10}/></div>
                     </div>
                 </a>
             );
         };
 
         const TrafficWidget = () => (
-            <a href={LINKS.TCL} target="_blank" className="bg-[#1c1c1e] p-4 rounded-2xl border border-white/5 flex flex-col justify-between active:scale-95 transition-transform">
+            <a href={LINKS.TCL} target="_blank" className="fintech-card p-5 border border-white/5 flex flex-col justify-between active:scale-95 transition-transform hover:bg-cardHover">
                 <div className="flex justify-between items-start">
-                    <Icon name="train" className="text-red-500" />
-                    <div className="flex gap-1">
+                    <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center text-red-500"><Icon name="train" size={20}/></div>
+                    <div className="flex gap-1.5">
                         <span className="w-2 h-2 rounded-full bg-success"></span>
-                        <span className="w-2 h-2 rounded-full bg-warning"></span>
+                        <span className="w-2 h-2 rounded-full bg-warning animate-pulse"></span>
                     </div>
                 </div>
                 <div>
-                    <div className="font-bold text-sm">Info Trafic TCL</div>
-                    <div className="text-[10px] text-subtext flex items-center gap-1">Métro A, T1, C3...</div>
+                    <div className="font-bold text-base mt-2">Info Trafic</div>
+                    <div className="text-xs text-subtext font-medium flex items-center gap-1 mt-1">TCL Direct <Icon name="arrow-up-right" size={10}/></div>
                 </div>
             </a>
         );
@@ -608,6 +623,7 @@
             const [quickNote, setQuickNote] = useState('');
             const [selectedModule, setSelectedModule] = useState(null);
             const [customLinks, setCustomLinks] = useState([]);
+            const [showMap, setShowMap] = useState(false);
             
             const dbRef = useRef(null);
             const appIdRef = useRef(typeof __app_id !== 'undefined' ? __app_id : 'default-fintech-app');
@@ -632,7 +648,7 @@
                     while (!window.firebaseModules && attempts < 20) { await new Promise(r => setTimeout(r, 100)); attempts++; }
                     if (!window.firebaseModules) return fallbackToLocal();
 
-                    const { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, getFirestore, doc, onSnapshot, collection, query } = window.firebaseModules;
+                    const { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, getFirestore, doc, onSnapshot, collection, query, orderBy } = window.firebaseModules;
                     
                     try {
                         const app = initializeApp(JSON.parse(__firebase_config));
@@ -690,9 +706,8 @@
                             const res = await fetch('https://corsproxy.io/?' + encodeURIComponent(profile.adeUrl));
                             const text = await res.text();
                             const parsed = parseICS(text);
-                            setAllEvents(parsed);
+                            setAllEvents(parsed.sort((a,b) => a.start - b.start));
                             
-                            // Get Monday of current week logic or next week if weekend
                             const d = new Date();
                             const day = d.getDay();
                             
@@ -745,7 +760,7 @@
             if (!user) return <div className="h-screen bg-black flex items-center justify-center text-white"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>;
 
             return (
-                <div className="min-h-screen bg-black text-white pb-24 font-sans">
+                <div className="min-h-screen bg-bg text-white pb-24 font-sans selection:bg-primary/30 selection:text-white">
                     {selectedModule && <GradeEditorModal module={selectedModule} grades={s2Grades[selectedModule.id]} onClose={()=>setSelectedModule(null)} onSave={g=>setS2Grades({...s2Grades, [selectedModule.id]: g})} />}
 
                     {/* FULL AGENDA VIEW (OVERLAY) */}
@@ -756,33 +771,45 @@
                                 <button onClick={() => setView('AGENDA')} className="p-2 bg-card rounded-full border border-border text-subtext"><Icon name="x" size={20}/></button>
                             </div>
                             <div className="p-4 pb-10">
-                                <SmartAgendaList events={allEvents.filter(e => e.start >= new Date()).slice(0, 50)} profile={profile} /> 
+                                <AgendaList events={allEvents.filter(e => e.start >= new Date()).slice(0, 50)} profile={profile} /> 
                             </div>
                         </div>
                     )}
 
                     <header className="p-6 pt-12 flex justify-between items-center bg-gradient-to-b from-primary/10 to-transparent sticky top-0 z-40 backdrop-blur-md">
-                        <div><div className="text-xs font-bold text-primary mb-1 uppercase">Espace Étudiant</div><h1 className="text-2xl font-bold">Bonjour {profile.firstName}</h1></div>
-                        <div onClick={()=>setView('SETTINGS')} className="w-10 h-10 rounded-full bg-card border border-white/10 flex items-center justify-center font-bold text-sm cursor-pointer">{profile.firstName[0]}</div>
+                        <div><div className="text-xs font-bold text-primary mb-1 uppercase tracking-wider">Espace Étudiant</div><h1 className="text-3xl font-bold tracking-tight">Bonjour {profile.firstName}</h1></div>
+                        <div onClick={()=>setView('SETTINGS')} className="w-10 h-10 rounded-full bg-card border border-border flex items-center justify-center font-bold text-sm cursor-pointer hover:border-white/30 transition-colors">{profile.firstName[0]}</div>
                     </header>
 
-                    <main className="px-4 space-y-6">
-                        {announcements.length > 0 && <div className="bg-primary text-white p-3 rounded-xl flex items-start gap-3 shadow-lg mb-4"><Icon name="info" size={20} className="mt-0.5" /><div><div className="font-bold text-sm">Info Admin</div><div className="text-sm opacity-90">{announcements[0].text}</div></div></div>}
+                    <main className="px-4 space-y-8">
+                        {announcements.length > 0 && <div className="bg-primary text-white p-4 rounded-2xl flex items-start gap-3 shadow-lg shadow-primary/20 mb-4 animate-in slide-in-from-top-2"><Icon name="info" size={20} className="mt-0.5" /><div><div className="font-bold text-sm uppercase tracking-wide mb-1">Info Admin</div><div className="text-sm opacity-90 leading-relaxed">{announcements[0].text}</div></div></div>}
 
                         {view === 'HOME' && (
                             <div className="space-y-4 animate-in">
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div className="glass p-4 rounded-2xl flex flex-col justify-center items-center text-center cursor-pointer active:scale-95 transition-transform"><PomodoroWidget /></div>
-                                    <div onClick={()=>setView('NOTES')} className="glass p-4 rounded-2xl flex flex-col justify-center items-center text-center cursor-pointer active:scale-95 transition-transform"><Icon name="calculator" size={24} className="text-primary mb-2"/><div className="text-xs text-subtext uppercase font-bold">Moyenne S2</div><div className="text-3xl font-bold">{stats.global || '--'}</div></div>
+                                <div className="grid grid-cols-2 gap-3 h-40">
+                                    <div className="fintech-card p-4 flex flex-col justify-between relative overflow-hidden group cursor-pointer hover:bg-cardHover border border-white/5 transition-colors" onClick={()=>setView('NOTES')}>
+                                        <div className="flex justify-between items-start z-10">
+                                            <div className="p-2 bg-primary/10 rounded-full text-primary"><Icon name="calculator" size={20}/></div>
+                                            <Icon name="arrow-up-right" size={16} className="text-subtext"/>
+                                        </div>
+                                        <div className="z-10">
+                                            <div className="text-3xl font-bold tracking-tighter text-white">{stats.global || '--'}</div>
+                                            <div className="text-xs text-subtext font-bold uppercase tracking-wider mt-1">Moyenne S2</div>
+                                        </div>
+                                        <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-primary/10 rounded-full blur-2xl group-hover:bg-primary/20 transition-all"></div>
+                                    </div>
+                                    <WeatherWidget />
                                 </div>
-                                <div className="grid grid-cols-2 gap-3">
+                                <div className="grid grid-cols-2 gap-3 h-40">
                                     <UpcomingDeadline tasks={TASKS_DATA} taskStatus={taskStatus} />
-                                    <Scratchpad note={quickNote} onChange={setQuickNote} />
+                                    <PomodoroWidget />
                                 </div>
+                                
                                 <SemesterProgress />
-                                <div className="bg-card p-4 rounded-2xl border border-white/5"><h3 className="font-bold mb-3 flex items-center gap-2">Mon Planning (Semaine)</h3>
-                                {events.length > 0 ? events.slice(0, 5).map((e, i) => (<div key={i} className="flex gap-4 mb-3 last:mb-0"><div className="text-xs font-bold text-subtext w-10 pt-1">{e.start.getHours()}h{e.start.getMinutes()||'00'}</div><div className="flex-1 bg-white/5 p-2 rounded-lg"><div className="font-bold text-sm">{e.summary}</div><div className="text-xs text-subtext">{e.location}</div></div></div>)) : <div className="text-center text-xs text-subtext py-4">Rien à l'horizon 🏖️</div>}
+                                <div className="fintech-card p-5 border border-white/5"><h3 className="font-bold mb-4 flex items-center gap-2 text-sm uppercase tracking-wider text-subtext">Mon Planning</h3>
+                                {events.length > 0 ? events.slice(0, 3).map((e, i) => (<div key={i} className="flex gap-4 mb-4 last:mb-0 items-center"><div className="text-xs font-bold text-subtext w-10 text-right">{e.start.getHours()}h{e.start.getMinutes()||'00'}</div><div className="w-1 h-8 rounded-full bg-primary/50"></div><div className="flex-1"><div className="font-bold text-sm text-white truncate">{e.summary}</div><div className="text-xs text-subtext truncate">{e.location}</div></div></div>)) : <div className="text-center text-xs text-subtext py-6 bg-white/5 rounded-xl">Rien à l'horizon 🏖️</div>}
                                 </div>
+                                <Scratchpad note={quickNote} onChange={setQuickNote} />
                             </div>
                         )}
 
@@ -792,56 +819,54 @@
                                 {semester === 2 ? (
                                     <div className="space-y-6">
                                         <div className="flex gap-2 mb-2">
-                                            <button onClick={()=>setVisibleUEs({...visibleUEs, 21: !visibleUEs[21]})} className={`px-3 py-1 rounded-lg text-xs border ${visibleUEs[21]?'bg-primary text-white border-primary':'bg-card text-subtext border-border'}`}>UE21</button>
-                                            <button onClick={()=>setVisibleUEs({...visibleUEs, 22: !visibleUEs[22]})} className={`px-3 py-1 rounded-lg text-xs border ${visibleUEs[22]?'bg-accent text-white border-accent':'bg-card text-subtext border-border'}`}>UE22</button>
+                                            <button onClick={()=>setVisibleUEs({...visibleUEs, 21: !visibleUEs[21]})} className={`flex-1 py-3 rounded-xl text-xs font-bold border transition-all ${visibleUEs[21]?'bg-primary text-white border-primary shadow-lg shadow-primary/20':'bg-card text-subtext border-border'}`}>UE21 • Concevoir</button>
+                                            <button onClick={()=>setVisibleUEs({...visibleUEs, 22: !visibleUEs[22]})} className={`flex-1 py-3 rounded-xl text-xs font-bold border transition-all ${visibleUEs[22]?'bg-white text-black border-white shadow-lg shadow-white/10':'bg-card text-subtext border-border'}`}>UE22 • Vérifier</button>
                                         </div>
                                         
                                         <TargetSimulator />
 
-                                        {visibleUEs[21] && <div className="bg-card p-4 rounded-2xl border border-border"><div className="flex justify-between mb-4"><h3 className="font-bold text-primary">UE21 - Concevoir</h3><span className="font-mono font-bold">{stats.avg21 || '--'}</span></div><div className="space-y-2">{MODULES_CONFIG_S2.filter(m=>m.coef21>0).map(m=>(<div key={m.id} onClick={()=>setSelectedModule(m)} className="flex justify-between p-2 hover:bg-white/5 rounded-lg cursor-pointer"><div><div className="font-bold text-sm">{m.label}</div><div className="text-[10px] text-subtext">Coef {m.coef21}</div></div><div className={`font-mono font-bold ${getGradeColor(calcAvg(s2Grades[m.id]))}`}>{calcAvg(s2Grades[m.id]) || "—"}</div></div>))}</div></div>}
-                                        {visibleUEs[22] && <div className="bg-card p-4 rounded-2xl border border-border"><div className="flex justify-between mb-4"><h3 className="font-bold text-accent">UE22 - Vérifier</h3><span className="font-mono font-bold">{stats.avg22 || '--'}</span></div><div className="space-y-2">{MODULES_CONFIG_S2.filter(m=>m.coef22>0).map(m=>(<div key={m.id} onClick={()=>setSelectedModule(m)} className="flex justify-between p-2 hover:bg-white/5 rounded-lg cursor-pointer"><div><div className="font-bold text-sm">{m.label}</div><div className="text-[10px] text-subtext">Coef {m.coef22}</div></div><div className={`font-mono font-bold ${getGradeColor(calcAvg(s2Grades[m.id]))}`}>{calcAvg(s2Grades[m.id]) || "—"}</div></div>))}</div></div>}
+                                        {visibleUEs[21] && <div className="fintech-card p-5 border border-white/5"><div className="flex justify-between mb-6 items-end"><h3 className="font-bold text-primary text-lg">UE21</h3><span className="font-mono font-bold text-2xl text-white">{stats.avg21 || '--'}</span></div><div className="space-y-1">{MODULES_CONFIG_S2.filter(m=>m.coef21>0).map(m=>(<div key={m.id} onClick={()=>setSelectedModule(m)} className="flex justify-between p-3 hover:bg-white/5 rounded-xl cursor-pointer transition-colors group"><div><div className="font-bold text-sm text-white group-hover:text-primary transition-colors">{m.label}</div><div className="text-[10px] text-subtext font-bold uppercase tracking-wider">Coef {m.coef21}</div></div><div className={`font-mono font-bold text-lg ${getGradeColor(calcAvg(s2Grades[m.id]))}`}>{calcAvg(s2Grades[m.id]) || "—"}</div></div>))}</div></div>}
+                                        {visibleUEs[22] && <div className="fintech-card p-5 border border-white/5"><div className="flex justify-between mb-6 items-end"><h3 className="font-bold text-white text-lg">UE22</h3><span className="font-mono font-bold text-2xl text-white">{stats.avg22 || '--'}</span></div><div className="space-y-1">{MODULES_CONFIG_S2.filter(m=>m.coef22>0).map(m=>(<div key={m.id} onClick={()=>setSelectedModule(m)} className="flex justify-between p-3 hover:bg-white/5 rounded-xl cursor-pointer transition-colors group"><div><div className="font-bold text-sm text-white group-hover:text-white transition-colors">{m.label}</div><div className="text-[10px] text-subtext font-bold uppercase tracking-wider">Coef {m.coef22}</div></div><div className={`font-mono font-bold text-lg ${getGradeColor(calcAvg(s2Grades[m.id]))}`}>{calcAvg(s2Grades[m.id]) || "—"}</div></div>))}</div></div>}
                                     </div>
                                 ) : (
                                     <div className="space-y-4">
-                                        <div className="bg-card p-6 rounded-2xl border border-border text-center"><Icon name="archive" size={40} className="mx-auto text-subtext mb-4"/><h3 className="font-bold text-lg mb-2">Semestre {semester}</h3><div className="space-y-4"><HistoryInput label={`Moyenne UE${semester}1`} value={history[`s${semester}`]?.[`ue${semester}1`]} onChange={v=>setHistory({...history, [`s${semester}`]: {...history[`s${semester}`], [`ue${semester}1`]: v}})} /><HistoryInput label={`Moyenne UE${semester}2`} value={history[`s${semester}`]?.[`ue${semester}2`]} onChange={v=>setHistory({...history, [`s${semester}`]: {...history[`s${semester}`], [`ue${semester}2`]: v}})} /></div></div>
+                                        <div className="fintech-card p-8 border border-white/5 text-center"><div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4"><Icon name="archive" size={32} className="text-subtext"/></div><h3 className="font-bold text-xl mb-2">Historique S{semester}</h3><p className="text-sm text-subtext mb-6">Saisissez vos moyennes validées pour conserver votre historique.</p><div className="space-y-4"><HistoryInput label={`Moyenne UE${semester}1`} value={history[`s${semester}`]?.[`ue${semester}1`]} onChange={v=>setHistory({...history, [`s${semester}`]: {...history[`s${semester}`], [`ue${semester}1`]: v}})} /><HistoryInput label={`Moyenne UE${semester}2`} value={history[`s${semester}`]?.[`ue${semester}2`]} onChange={v=>setHistory({...history, [`s${semester}`]: {...history[`s${semester}`], [`ue${semester}2`]: v}})} /></div></div>
                                     </div>
                                 )}
                             </div>
                         )}
 
                         {view === 'AGENDA' && (
-                            <div className="space-y-6 animate-in">
-                                <div><h2 className="text-2xl font-bold mb-4">Planning Semaine</h2><SmartAgendaList events={allEvents} profile={profile} onExpand={() => setView('FULL_AGENDA')} /></div>
-                                <div><h2 className="text-2xl font-bold mb-4">QCM & Deadlines</h2><div className="bg-card p-4 rounded-2xl border border-border"><QCMList tasks={TASKS_DATA} taskStatus={taskStatus} onToggle={(id)=>{const nt={...taskStatus,[id]:!taskStatus[id]}; setTaskStatus(nt);}} /></div></div>
+                            <div className="space-y-8 animate-in">
+                                <div><h2 className="text-3xl font-bold mb-6 tracking-tight">Planning</h2><AgendaList events={allEvents} profile={profile} onExpand={() => setView('FULL_AGENDA')} /></div>
+                                <div><h2 className="text-3xl font-bold mb-6 tracking-tight">Deadlines</h2><div className="fintech-card p-2 border border-white/5"><QCMList tasks={TASKS_DATA} taskStatus={taskStatus} onToggle={(id)=>{const nt={...taskStatus,[id]:!taskStatus[id]}; setTaskStatus(nt);}} /></div></div>
                             </div>
                         )}
 
                         {view === 'LIFE' && (
-                            <div className="space-y-6 animate-in">
-                                <div><h2 className="text-xl font-bold mb-4">Services Campus</h2><div className="grid grid-cols-2 gap-3"><CrousWidget /><TrafficWidget /></div></div>
-                                <div><h2 className="text-xl font-bold mb-4">Liens Utiles</h2><div className="grid grid-cols-1 gap-3">{USEFUL_LINKS.map((link, i) => (<a key={i} href={link.url} target="_blank" className="flex items-center gap-4 bg-card p-3 rounded-xl border border-white/5 active:scale-95 transition-transform"><div className={`w-10 h-10 rounded-full ${link.color} flex items-center justify-center text-white shadow-lg`}><Icon name={link.icon} size={20} /></div><span className="font-bold text-sm">{link.name}</span><Icon name="chevron-right" size={16} className="ml-auto text-subtext"/></a>))}</div></div>
+                            <div className="space-y-8 animate-in">
+                                <div><h2 className="text-3xl font-bold mb-6 tracking-tight">Campus</h2><div className="grid grid-cols-2 gap-4"><CrousWidget /><TrafficWidget /></div></div>
+                                <div><h2 className="text-3xl font-bold mb-6 tracking-tight">Liens</h2><div className="grid grid-cols-1 gap-3">{USEFUL_LINKS.map((link, i) => (<a key={i} href={link.url} target="_blank" className="flex items-center gap-4 fintech-card p-4 border border-white/5 active:scale-98 transition-transform hover:bg-cardHover"><div className={`w-12 h-12 rounded-full ${link.color} flex items-center justify-center text-white shadow-lg`}><Icon name={link.icon} size={20} /></div><span className="font-bold text-base">{link.name}</span><Icon name="chevron-right" size={20} className="ml-auto text-subtext/50"/></a>))}</div></div>
                             </div>
                         )}
 
                         {view === 'SETTINGS' && (
-                            <div className="space-y-4 animate-in">
-                                <h2 className="text-xl font-bold">Mon Compte</h2>
-                                <div className="bg-gradient-to-r from-primary/20 to-purple-900/20 p-6 rounded-2xl border border-white/10 flex items-center justify-between">
-                                    <div>
-                                        <div className="text-xs uppercase font-bold text-subtext mb-1">Niveau Actuel</div>
-                                        <div className="text-2xl font-bold text-primary">{stats.level}</div>
-                                    </div>
-                                    <div className="text-right">
-                                        <div className="text-3xl font-mono font-bold">{stats.xp}</div>
-                                        <div className="text-xs uppercase font-bold text-subtext">XP Points</div>
+                            <div className="space-y-6 animate-in">
+                                <h2 className="text-3xl font-bold tracking-tight">Profil</h2>
+                                <div className="bg-gradient-to-br from-primary to-blue-700 p-8 rounded-3xl shadow-2xl shadow-primary/20 flex flex-col items-center text-center relative overflow-hidden">
+                                    <div className="absolute top-0 right-0 p-8 opacity-20"><Icon name="award" size={120}/></div>
+                                    <div className="relative z-10">
+                                        <div className="text-xs uppercase font-bold text-white/70 mb-2 tracking-widest">Niveau Actuel</div>
+                                        <div className="text-4xl font-bold text-white mb-1">{stats.level}</div>
+                                        <div className="text-sm font-mono text-white/80 bg-white/20 px-3 py-1 rounded-full inline-block">{stats.xp} XP</div>
                                     </div>
                                 </div>
 
-                                <div className="bg-card p-4 rounded-2xl border border-white/5 space-y-4">
-                                    <div><label className="text-xs text-subtext block mb-1">Prénom</label><input value={profile.firstName} onChange={e=>setProfile({...profile, firstName:e.target.value})} className="w-full bg-black/30 border border-white/5 rounded-lg p-3 text-sm focus:border-primary outline-none"/></div>
-                                    <div><label className="text-xs text-subtext block mb-1">Lien ADE</label><input value={profile.adeUrl} onChange={e=>setProfile({...profile, adeUrl:e.target.value})} className="w-full bg-black/30 border border-white/5 rounded-lg p-3 text-xs font-mono"/></div>
+                                <div className="fintech-card p-6 border border-white/5 space-y-6">
+                                    <div><label className="text-xs text-subtext font-bold uppercase tracking-wider block mb-2">Prénom</label><input value={profile.firstName} onChange={e=>setProfile({...profile, firstName:e.target.value})} className="w-full bg-black/50 border border-white/10 rounded-xl p-4 text-base focus:border-primary outline-none text-white font-medium"/></div>
+                                    <div><label className="text-xs text-subtext font-bold uppercase tracking-wider block mb-2">Lien ADE (iCal)</label><input value={profile.adeUrl} onChange={e=>setProfile({...profile, adeUrl:e.target.value})} className="w-full bg-black/50 border border-white/10 rounded-xl p-4 text-xs font-mono text-subtext focus:border-primary outline-none break-all"/></div>
                                 </div>
-                                <button onClick={()=>{localStorage.clear();window.location.reload()}} className="w-full py-4 text-danger font-bold text-sm bg-danger/10 rounded-xl border border-danger/20">Réinitialiser l'application</button>
+                                <button onClick={()=>{localStorage.clear();window.location.reload()}} className="w-full py-4 text-danger font-bold text-sm bg-danger/10 rounded-xl border border-danger/20 active:scale-95 transition-transform hover:bg-danger/20">Réinitialiser l'application</button>
                             </div>
                         )}
                     </main>
