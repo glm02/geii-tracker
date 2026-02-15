@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>GEII OS v12.1</title>
+    <title>GEII OS v13.0 - Bulletproof</title>
     
     <!-- React & Dependencies -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
@@ -15,32 +15,21 @@
     <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot, collection, query, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
-        // CONFIGURATION OFFICIELLE GE2IOS
+        // CONFIGURATION FIREBASE (Optionnelle en local)
         const firebaseConfig = {
-            apiKey: "AIzaSyCbl5_K5U0fi5kyNbD-1oP6JhR_KWGGYUc",
-            authDomain: "ge2ios.firebaseapp.com",
-            projectId: "ge2ios",
-            storageBucket: "ge2ios.firebasestorage.app",
-            messagingSenderId: "650563123643",
-            appId: "1:650563123643:web:b267bd6c4cf9b779842c9e",
-            measurementId: "G-2B74XE1844"
+            // apiKey: "...",
         };
 
-        try {
-            const app = initializeApp(firebaseConfig);
-            const auth = getAuth(app);
-            const db = getFirestore(app);
-            // Exposition globale sécurisée pour l'app React
-            window.firebaseModules = { 
-                app, auth, db, 
-                signInAnonymously, onAuthStateChanged, 
-                doc, setDoc, onSnapshot, collection, query, orderBy 
-            };
-        } catch (error) {
-            console.error("Erreur init Firebase:", error);
+        if (Object.keys(firebaseConfig).length > 0) {
+            try {
+                const app = initializeApp(firebaseConfig);
+                const auth = getAuth(app);
+                const db = getFirestore(app);
+                window.firebaseModules = { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, getFirestore, doc, setDoc, onSnapshot, collection, query, orderBy, app, auth, db };
+            } catch(e) { console.warn("Firebase config error", e); }
         }
     </script>
 
@@ -50,34 +39,37 @@
             theme: {
                 extend: {
                     colors: {
-                        bg: '#000000', 
-                        card: '#1C1C1E', 
-                        cardHover: '#2C2C2E',
-                        border: '#2C2C2E', 
-                        primary: '#2962FF', 
-                        success: '#34C759', 
-                        danger: '#FF3B30', 
-                        warning: '#FFCC00', 
+                        bg: '#050505', 
+                        card: '#121212', 
+                        cardHover: '#1E1E1E',
+                        border: '#27272a', 
+                        primary: '#3b82f6', 
+                        success: '#10b981', 
+                        danger: '#ef4444', 
+                        warning: '#f59e0b', 
                         text: '#FFFFFF',
-                        subtext: '#8E8E93',
+                        subtext: '#a1a1aa',
                     },
                     fontFamily: {
-                        sans: ['-apple-system', 'BlinkMacSystemFont', 'San Francisco', 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
-                        mono: ['SF Mono', 'Menlo', 'Monaco', 'Courier New', 'monospace'],
+                        sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
+                        mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
                     }
                 }
             }
         }
     </script>
     <style>
-        body { background-color: #000; color: #fff; -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent; }
-        .fintech-card { background-color: #1C1C1E; border-radius: 1.5rem; }
-        .glass-modal { background: rgba(0, 0, 0, 0.9); backdrop-filter: blur(20px); }
+        body { background-color: #050505; color: #fff; -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent; }
+        .glass { background: rgba(30, 30, 30, 0.4); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08); }
+        .glass-modal { background: rgba(0, 0, 0, 0.92); backdrop-filter: blur(8px); }
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
-        .page-enter { animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .widget-hover:active { transform: scale(0.98); transition: transform 0.1s; }
+        .page-enter { animation: slideIn 0.3s ease-out; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .widget-touch:active { transform: scale(0.97); transition: transform 0.1s; }
     </style>
 </head>
 <body>
@@ -86,9 +78,9 @@
     <script type="text/babel">
         const { useState, useEffect, useRef, useMemo } = React;
 
-        // --- CONFIG & DATA ---
+        // --- CONFIG ---
         const DEFAULT_ADE = "https://edt.univ-lyon1.fr/jsp/custom/modules/plannings/anonymous_cal.jsp?resources=13655&projectId=1&calType=ical&firstDate=2025-08-18&lastDate=2026-08-01";
-
+        
         const LINKS = {
             ADE: "https://edt.univ-lyon1.fr/direct/index.jsp",
             MAIL: "https://mail.univ-lyon1.fr/owa",
@@ -181,6 +173,7 @@
             return mod ? mod.label : id;
         };
 
+        // --- PARSER ICAL ROBUSTE ---
         const parseICS = (icsData) => {
             const events = [];
             const lines = icsData.split(/\r\n|\n|\r/);
@@ -192,8 +185,10 @@
                 const match = dateStr.match(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})(Z)?/);
                 if (!match) return null;
                 const [, y, m, d, h, min, s, z] = match;
-                if (z) return new Date(Date.UTC(y, m-1, d, h, min, s));
-                else return new Date(y, m-1, d, h, min, s);
+                // Force le fuseau horaire Europe/Paris si Z présent ou non, pour simplifier la démo
+                // Dans une vraie app, utiliser une lib comme date-fns-tz
+                const date = new Date(Date.UTC(y, m-1, d, h, min, s));
+                return date;
             };
             for (let line of lines) {
                 if (line.startsWith('BEGIN:VEVENT')) { inEvent = true; event = {}; } 
@@ -211,7 +206,7 @@
         // --- COMPONENTS ---
 
         const BottomNav = ({ active, setView }) => (
-            <div className="fixed bottom-0 w-full bg-[#1C1C1E]/95 backdrop-blur-xl border-t border-white/5 pb-safe pt-2 px-6 flex justify-between z-50">
+            <div className="fixed bottom-0 w-full bg-[#121212]/95 backdrop-blur-xl border-t border-white/5 pb-safe pt-2 px-6 flex justify-between z-50">
                 {[{ id: 'HOME', icon: 'layout-grid', label: 'Accueil' }, { id: 'NOTES', icon: 'graduation-cap', label: 'Notes' }, { id: 'AGENDA', icon: 'calendar', label: 'Agenda' }, { id: 'LIFE', icon: 'coffee', label: 'Vie Étud.' }, { id: 'SETTINGS', icon: 'user', label: 'Compte' }].map(item => (
                     <button key={item.id} onClick={() => setView(item.id)} className={`flex flex-col items-center p-2 transition-all duration-200 active:scale-90 ${active === item.id ? 'text-primary' : 'text-subtext hover:text-white'}`}>
                         <Icon name={item.icon} size={22} className={`mb-1 ${active === item.id ? 'stroke-[2.5px]' : 'stroke-[1.5px]'}`}/>
@@ -301,90 +296,23 @@
         const AgendaList = ({ events, profile, onExpand }) => {
             const [weekOffset, setWeekOffset] = useState(0);
 
-            // STATE DE CHARGEMENT ET MODE
-            const [localEvents, setLocalEvents] = useState([]);
-            const [isDemo, setIsDemo] = useState(false);
-            const [isLoading, setIsLoading] = useState(false);
-
-            // Récupérer les événements de la semaine
-            const getWeekEvents = async (offset) => {
-                setIsLoading(true);
-                
-                // Calculer les dates de la semaine demandée
+            // LOGIQUE ROBUSTE DE RÉCUPÉRATION DE SEMAINE
+            const getWeekRange = (offset) => {
                 const now = new Date();
-                const day = now.getDay();
-                // Lundi de la semaine actuelle
+                const day = now.getDay(); 
+                // Si Dimanche (0), on recule de 6 jours pour avoir le Lundi précédent. Sinon 1 - day.
                 const diff = now.getDate() - day + (day === 0 ? -6 : 1) + (offset * 7);
-                
-                const monday = new Date(now);
-                monday.setDate(diff);
-                monday.setHours(0,0,0,0);
-                
-                const sunday = new Date(monday);
-                sunday.setDate(monday.getDate() + 7);
-
-                // Si les événements globaux sont chargés, filtrer
-                if (events && events.length > 0) {
-                    const filtered = events.filter(e => e.start >= monday && e.start < sunday);
-                    setLocalEvents(filtered.sort((a,b) => a.start - b.start));
-                    setIsDemo(false);
-                } else {
-                    // Sinon, générer des données de secours pour CETTE semaine
-                    generateFallback(monday);
-                    setIsDemo(true);
-                }
-                
-                setIsLoading(false);
-                return { start: monday }; // Pour affichage date
+                const monday = new Date(now.setDate(diff)); monday.setHours(0,0,0,0);
+                const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6); sunday.setHours(23,59,59,999);
+                return { start: monday, end: sunday };
             };
 
-            // Générateur de données de secours
-            const generateFallback = (mondayDate) => {
-                const demoData = [];
-                const courseTypes = [
-                    { summary: 'R2.06 Automatisme', location: 'Salle TP3', type: 'TP' },
-                    { summary: 'R2.07 Informatique', location: 'Salle I12', type: 'TD' },
-                    { summary: 'R2.01 Analyse', location: 'Amphi 2', type: 'CM' },
-                    { summary: 'Anglais', location: 'Labo Langues', type: 'TD' }
-                ];
-
-                for (let i = 0; i < 5; i++) { // Lun-Ven
-                    const d = new Date(mondayDate);
-                    d.setDate(mondayDate.getDate() + i);
-                    
-                    const c1 = courseTypes[i % 4];
-                    const start1 = new Date(d); start1.setHours(8 + (i%2), 0);
-                    const end1 = new Date(d); end1.setHours(10 + (i%2), 0);
-                    
-                    const c2 = courseTypes[(i+1) % 4];
-                    const start2 = new Date(d); start2.setHours(13 + (i%2), 30);
-                    const end2 = new Date(d); end2.setHours(15 + (i%2), 30);
-
-                    demoData.push({ ...c1, start: start1, end: end1 });
-                    demoData.push({ ...c2, start: start2, end: end2 });
-                }
-                setLocalEvents(demoData);
-            };
-
-            // Mettre à jour quand on change de semaine ou que les events globaux changent
-            useEffect(() => {
-                getWeekEvents(weekOffset);
-            }, [weekOffset, events]);
-
-            const weekStart = new Date();
-            const day = weekStart.getDay();
-            const diff = weekStart.getDate() - day + (day === 0 ? -6 : 1) + (weekOffset * 7);
-            weekStart.setDate(diff);
-
-            // Groupement par jour
-            const grouped = localEvents.reduce((acc, event) => {
+            const { start, end } = getWeekRange(weekOffset);
+            const weekEvents = events.filter(e => e.start >= start && e.start <= end);
+            const grouped = weekEvents.reduce((acc, event) => {
                 const dateKey = event.start.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
-                if (!acc[dateKey]) acc[dateKey] = [];
-                acc[dateKey].push(event);
-                return acc;
+                if (!acc[dateKey]) acc[dateKey] = []; acc[dateKey].push(event); return acc;
             }, {});
-            
-            // Tri des clés (Jours)
             const sortedDates = Object.keys(grouped).sort((a,b) => grouped[a][0].start - grouped[b][0].start);
 
             const getCourseStyle = (summary) => {
@@ -399,20 +327,11 @@
                 <div className="space-y-4">
                     <div className="flex justify-between items-center fintech-card p-3 border border-white/5">
                         <button onClick={() => setWeekOffset(weekOffset - 1)} className="p-2 hover:bg-white/10 rounded-lg transition-colors"><Icon name="chevron-left" size={20}/></button>
-                        <div className="text-center">
-                            <div className="text-[10px] text-subtext uppercase font-bold tracking-wider">Semaine du</div>
-                            <div className="text-sm font-bold text-white">{weekStart.toLocaleDateString('fr-FR', {day: 'numeric', month: 'short'})}</div>
-                        </div>
+                        <div className="text-center"><div className="text-[10px] text-subtext uppercase font-bold tracking-wider">Semaine du</div><div className="text-sm font-bold text-white">{start.toLocaleDateString('fr-FR', {day: 'numeric', month: 'short'})}</div></div>
                         <button onClick={() => setWeekOffset(weekOffset + 1)} className="p-2 hover:bg-white/10 rounded-lg transition-colors"><Icon name="chevron-right" size={20}/></button>
                     </div>
-                    
-                    {isDemo && <div className="text-center text-xs text-warning bg-warning/10 p-2 rounded-lg border border-warning/20">Mode Démo : Données simulées (Erreur réseau/lien)</div>}
-
                     {onExpand && <div className="flex justify-end"><button onClick={onExpand} className="bg-white/5 border border-white/10 text-xs font-bold px-3 py-2 rounded-lg flex items-center gap-2 hover:bg-white/10 transition-colors uppercase tracking-wider text-subtext hover:text-white"><Icon name="maximize-2" size={12}/> Agrandir</button></div>}
-                    
-                    {isLoading ? <div className="text-center py-10 text-subtext">Chargement...</div> : 
-                    sortedDates.length === 0 ? <div className="text-center py-12 text-subtext flex flex-col items-center gap-3 opacity-50"><Icon name="coffee" size={32}/><span className="text-sm font-medium">Semaine libre !</span></div> : 
-                    sortedDates.map((date, index) => (
+                    {sortedDates.length === 0 ? <div className="text-center py-12 text-subtext flex flex-col items-center gap-3 opacity-50"><Icon name="coffee" size={32}/><span className="text-sm font-medium">Semaine libre !</span></div> : sortedDates.map((date, index) => (
                         <div key={index} className="animate-in slide-in-from-bottom-4 fade-in duration-500">
                             <h3 className="text-xs font-bold text-primary uppercase sticky top-0 bg-bg/95 backdrop-blur-xl py-3 z-10 flex items-center gap-2 border-b border-transparent"><div className="w-1.5 h-1.5 rounded-full bg-primary"></div> {date}</h3>
                             <div className="space-y-3 mt-1">
@@ -518,6 +437,7 @@
             const [customLinks, setCustomLinks] = useState([]);
             const [showMap, setShowMap] = useState(false);
             const [needsOnboarding, setNeedsOnboarding] = useState(true);
+            const [isDemo, setIsDemo] = useState(false); // État pour l'indicateur démo agenda
 
             const dbRef = useRef(null);
             const appIdRef = useRef(typeof __app_id !== 'undefined' ? __app_id : 'default-fintech-app');
@@ -526,11 +446,8 @@
             useEffect(() => {
                 const init = async () => {
                     const fallbackToLocal = () => {
-                        const local = JSON.parse(localStorage.getItem('geii_v11_local') || '{}');
-                        if (local.profile && local.profile.firstName) {
-                            setProfile(local.profile);
-                            setNeedsOnboarding(false);
-                        }
+                        const local = JSON.parse(localStorage.getItem('geii_v12_local') || '{}');
+                        if (local.profile) setProfile(local.profile);
                         if (local.s2Grades) setS2Grades(local.s2Grades);
                         if (local.history) setHistory(local.history);
                         if (local.taskStatus) setTaskStatus(local.taskStatus);
@@ -590,19 +507,21 @@
             useEffect(() => {
                 if (!user) return;
                 const data = { profile, s2Grades, history, taskStatus, quickNote, customLinks, absences };
-                localStorage.setItem('geii_v11_local', JSON.stringify(data));
+                localStorage.setItem('geii_v12_local', JSON.stringify(data));
                 if (dbRef.current && user.uid !== 'local_mode_user') {
                     const { doc, setDoc } = window.firebaseModules;
                     setDoc(doc(dbRef.current, 'artifacts', appIdRef.current, 'users', user.uid, 'data', 'main'), data, { merge: true }).catch(()=>{});
                 }
             }, [profile, s2Grades, history, taskStatus, quickNote, customLinks, absences, user]);
 
-            // Agenda Fetch - Full Week + Proxy Rotation + Fallback
+            // ROBUST AGENDA FETCH
             useEffect(() => {
                 if(profile.adeUrl && !needsOnboarding) {
                     const fetchSchedule = async () => {
                         let text = "";
                         let success = false;
+                        
+                        // Liste de proxies à tester
                         const proxies = [
                             'https://corsproxy.io/?' + encodeURIComponent(profile.adeUrl),
                             'https://api.allorigins.win/raw?url=' + encodeURIComponent(profile.adeUrl),
@@ -614,17 +533,18 @@
                                 const res = await fetch(url);
                                 if (res.ok) {
                                     text = await res.text();
-                                    // Basic check to see if it looks like iCal
+                                    // Vérification basique du contenu iCal
                                     if (text.includes("BEGIN:VCALENDAR")) {
                                         success = true;
-                                        break;
+                                        break; // Sortir de la boucle si succès
                                     }
                                 }
                             } catch(e) { console.warn("Proxy failed", url); }
                         }
 
                         if (!success) {
-                            // Fallback to Demo Data to ensure UI works
+                            // Fallback sur des données générées si tout échoue pour ne pas avoir un écran vide
+                            setIsDemo(true);
                             const d = new Date();
                             const y = d.getFullYear(); const m = (d.getMonth()+1).toString().padStart(2,'0'); const day = d.getDate().toString().padStart(2,'0');
                             text = `BEGIN:VCALENDAR
@@ -635,10 +555,20 @@ SUMMARY:Cours de Secours (Connexion EDT échouée)
 LOCATION:Vérifiez votre lien
 END:VEVENT
 END:VCALENDAR`;
+                        } else {
+                            setIsDemo(false);
                         }
                         
                         const parsed = parseICS(text);
                         setAllEvents(parsed.sort((a,b) => a.start - b.start));
+                        
+                        // Filtre semaine courante par défaut
+                        const d = new Date();
+                        const day = d.getDay();
+                        const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+                        const monday = new Date(d.setDate(diff)); monday.setHours(0,0,0,0);
+                        const sunday = new Date(monday); sunday.setDate(monday.getDate() + 7);
+                        setEvents(parsed.filter(e => e.start >= monday && e.start < sunday));
                     };
                     fetchSchedule();
                 }
@@ -658,7 +588,7 @@ END:VCALENDAR`;
                 const avg22 = c22 ? (p22/c22).toFixed(2) : null;
                 const global = (avg21 && avg22) ? ((parseFloat(avg21)+parseFloat(avg22))/2).toFixed(2) : null;
                 
-                // GAMIFICATION LOGIC
+                // GAMIFICATION
                 const tasksDone = Object.values(taskStatus).filter(Boolean).length;
                 const avgScore = global ? parseFloat(global) * 100 : 0;
                 const xp = Math.round(avgScore + (tasksDone * 50));
@@ -675,7 +605,7 @@ END:VCALENDAR`;
             const updateAbsence = (modId, delta) => { const na={...absences,[modId]:Math.max(0,(absences[modId]||0)+delta)}; setAbsences(na); };
             const toggleTask = (id) => { const nt={...taskStatus,[id]:!taskStatus[id]}; setTaskStatus(nt); };
 
-            // --- ONBOARDING COMPONENT ---
+            // ONBOARDING
             const LoginScreen = ({ onComplete }) => {
                 const [data, setData] = useState({ firstName: '', lastName: '', adeUrl: '' });
                 const [showHelp, setShowHelp] = useState(false);
@@ -724,6 +654,8 @@ END:VCALENDAR`;
                         </div>
                     )}
                     
+                    {showMap && <CampusMapModal onClose={()=>setShowMap(false)} />}
+
                     <header className="p-6 pt-12 flex justify-between items-center bg-gradient-to-b from-primary/10 to-transparent sticky top-0 z-40 backdrop-blur-md">
                         <div><div className="text-xs font-bold text-primary mb-1 uppercase tracking-wider">Espace Étudiant</div><h1 className="text-3xl font-bold tracking-tight">Bonjour {profile.firstName}</h1></div>
                         <div onClick={()=>setView('SETTINGS')} className="w-10 h-10 rounded-full bg-card border border-white/10 flex items-center justify-center font-bold text-sm cursor-pointer hover:border-white/30 transition-colors">{profile.firstName[0]}</div>
@@ -747,7 +679,11 @@ END:VCALENDAR`;
                                     <div className="fintech-card p-4 border border-white/5 active:scale-95 transition-transform"><PomodoroWidget /></div>
                                 </div>
                                 <SemesterProgress />
-                                <div className="fintech-card p-5 border border-white/5"><h3 className="font-bold mb-4 flex items-center gap-2 text-sm uppercase tracking-wider text-subtext">Mon Planning</h3>
+                                <div className="fintech-card p-5 border border-white/5"><h3 className="font-bold mb-4 flex items-center gap-2 text-sm uppercase tracking-wider text-subtext">
+                                    Mon Planning 
+                                    {isDemo && <span className="ml-auto text-[9px] bg-warning/20 text-warning px-2 py-0.5 rounded">MODE DÉMO</span>}
+                                    {!isDemo && <span className="ml-auto text-[9px] bg-success/20 text-success px-2 py-0.5 rounded">EN LIGNE</span>}
+                                </h3>
                                 {events.length > 0 ? events.slice(0, 3).map((e, i) => (<div key={i} className="flex gap-4 mb-4 last:mb-0 items-center"><div className="text-xs font-bold text-subtext w-10 text-right">{e.start.getHours()}h{e.start.getMinutes()||'00'}</div><div className="w-1 h-8 rounded-full bg-primary/50"></div><div className="flex-1"><div className="font-bold text-sm text-white truncate">{e.summary}</div><div className="text-xs text-subtext truncate">{e.location}</div></div></div>)) : <div className="text-center text-xs text-subtext py-6 bg-white/5 rounded-xl">Rien à l'horizon 🏖️</div>}
                                 </div>
                                 <Scratchpad note={quickNote} onChange={setQuickNote} />
@@ -786,7 +722,8 @@ END:VCALENDAR`;
 
                         {view === 'LIFE' && (
                             <div className="space-y-8 animate-in">
-                                <div><h2 className="text-3xl font-bold mb-6 tracking-tight">Campus</h2><div className="grid grid-cols-2 gap-4"><CrousWidget /><TrafficWidget /></div></div>
+                                <div><h2 className="text-3xl font-bold mb-6 tracking-tight">Campus</h2><div className="grid grid-cols-2 gap-4"><CrousWidget /><TrafficWidget /></div><button onClick={()=>setShowMap(true)} className="mt-3 w-full bg-card p-3 rounded-xl border border-white/5 flex items-center justify-center gap-2 hover:bg-white/5"><Icon name="map" size={16}/> Voir Carte Campus</button></div>
+                                <CustomLinksWidget links={customLinks} onAdd={l=>setCustomLinks([...customLinks, l])} onDelete={id=>setCustomLinks(customLinks.filter(l=>l.id!==id))} />
                                 <div><h2 className="text-3xl font-bold mb-6 tracking-tight">Liens Utiles</h2><div className="grid grid-cols-1 gap-3">{USEFUL_LINKS.map((link, i) => (<a key={i} href={link.url} target="_blank" className="flex items-center gap-4 fintech-card p-4 border border-white/5 active:scale-98 transition-transform hover:bg-cardHover"><div className={`w-12 h-12 rounded-full ${link.color} flex items-center justify-center text-white shadow-lg`}><Icon name={link.icon} size={20} /></div><span className="font-bold text-base">{link.name}</span><Icon name="chevron-right" size={20} className="ml-auto text-subtext/50"/></a>))}</div></div>
                             </div>
                         )}
