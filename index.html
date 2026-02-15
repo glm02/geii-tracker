@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>GEII OS v11.1</title>
+    <title>GEII OS v11.2</title>
     
     <!-- React & Dependencies -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
@@ -64,6 +64,7 @@
         .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
         .page-enter { animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .widget-hover:active { transform: scale(0.98); transition: transform 0.1s; }
     </style>
 </head>
 <body>
@@ -117,32 +118,11 @@
             { module: 'R2.09', title: 'QCM_TD4', end: '2026-03-13', type: 'QCM' },
             { module: 'R2.09', title: 'QCM_TD6', end: '2026-03-27', type: 'QCM' },
             { module: 'R2.09', title: 'QCM_TD8', end: '2026-04-24', type: 'QCM' },
-            { module: 'R2.09', title: 'QCM_TD9', end: '2026-04-30', type: 'QCM' },
-            { module: 'R2.09', title: 'QCM_TD11', end: '2026-05-08', type: 'QCM' },
-            { module: 'R2.09', title: 'QCM_TD12', end: '2026-05-21', type: 'QCM' },
             { module: 'R2.10', title: 'QCM1_Séance 1', end: '2026-02-06', type: 'QCM' },
             { module: 'R2.10', title: 'QCM2_Séance 2', end: '2026-02-13', type: 'QCM' },
             { module: 'R2.10', title: 'QCM3 - Devoir', end: '2026-02-27', type: 'DEVOIR' },
-            { module: 'R2.10', title: 'QCM4', end: '2026-03-06', type: 'QCM' },
-            { module: 'R2.10', title: 'QCM5', end: '2026-03-13', type: 'QCM' },
-            { module: 'R2.10', title: 'QCM6', end: '2026-03-20', type: 'QCM' },
-            { module: 'R2.10', title: 'QCM7', end: '2026-03-28', type: 'QCM' },
-            { module: 'R2.10', title: 'QCM8', end: '2026-04-04', type: 'QCM' },
-            { module: 'R2.10', title: 'QCM10', end: '2026-04-18', type: 'QCM' },
-            { module: 'R2.10', title: 'QCM11', end: '2026-05-09', type: 'QCM' },
-            { module: 'R2.10', title: 'QCM12', end: '2026-05-16', type: 'QCM' },
-            { module: 'R2.10', title: 'QCM13', end: '2026-05-23', type: 'QCM' },
-            { module: 'R2.10', title: 'QCM14', end: '2026-05-30', type: 'QCM' },
         ];
         
-        const startDate = new Date('2026-02-02');
-        for(let i=0; i<10; i++) {
-            let d1 = new Date(startDate); d1.setDate(startDate.getDate() + (i*7));
-            let d2 = new Date(startDate); d2.setDate(startDate.getDate() + (i*7) + 3);
-            TASKS_DATA.push({ module: 'R2.04', title: `QCM Hebdo ${i+1}.1`, end: d1.toISOString().split('T')[0], type: 'MATHS' });
-            TASKS_DATA.push({ module: 'R2.04', title: `QCM Hebdo ${i+1}.2`, end: d2.toISOString().split('T')[0], type: 'MATHS' });
-        }
-
         // --- HELPERS ---
         const Icon = ({ name, size=20, className="" }) => {
             useEffect(() => { lucide.createIcons(); }, [name]);
@@ -196,33 +176,6 @@
 
         // --- COMPONENTS ---
 
-        const LoginScreen = ({ onComplete }) => {
-            const [data, setData] = useState({ firstName: '', lastName: '', adeUrl: '' });
-            const [showHelp, setShowHelp] = useState(false);
-            const handleSubmit = () => { if(data.firstName && data.adeUrl) onComplete(data); else alert("Veuillez remplir votre Prénom et le lien ADE."); };
-
-            return (
-                <div className="min-h-screen bg-bg flex flex-col justify-center px-6 py-10 relative overflow-hidden">
-                    <div className="absolute top-[-20%] left-[-20%] w-[500px] h-[500px] bg-primary/20 rounded-full blur-[100px]"></div>
-                    <div className="relative z-10 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-                        <div className="text-center space-y-2">
-                            <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-2xl shadow-primary/30"><Icon name="zap" size={32} className="text-white"/></div>
-                            <h1 className="text-4xl font-bold tracking-tight">Bienvenue <br/><span className="text-primary">GEII OS</span></h1>
-                            <p className="text-subtext">Votre assistant étudiant personnel.</p>
-                        </div>
-                        <div className="space-y-4">
-                            <div className="fintech-card p-1"><input value={data.firstName} onChange={e=>setData({...data, firstName:e.target.value})} placeholder="Ton Prénom" className="w-full bg-transparent p-4 text-white placeholder-white/30 outline-none"/><div className="h-[1px] bg-white/5 mx-4"></div><input value={data.lastName} onChange={e=>setData({...data, lastName:e.target.value})} placeholder="Ton Nom" className="w-full bg-transparent p-4 text-white placeholder-white/30 outline-none"/></div>
-                            <div className="space-y-2">
-                                <div className="fintech-card p-1 flex items-center"><input value={data.adeUrl} onChange={e=>setData({...data, adeUrl:e.target.value})} placeholder="Lien Export Agenda (ADE)" className="w-full bg-transparent p-4 text-white placeholder-white/30 outline-none text-sm"/><button onClick={()=>setShowHelp(!showHelp)} className="p-3 text-primary"><Icon name="help-circle"/></button></div>
-                                {showHelp && <div className="fintech-card p-4 text-sm text-subtext space-y-2 animate-in slide-in-from-top-2"><p className="font-bold text-white flex items-center gap-2"><Icon name="info" size={14}/> Tuto Rapide :</p><ol className="list-decimal list-inside space-y-1 ml-1"><li>Allez sur <b>ADE</b>.</li><li>Cliquez sur l'onglet <b>"Exporter"</b>.</li><li>Choisissez <b>"Générer URL"</b>.</li><li>Copiez le lien <code>https://edt...</code></li></ol></div>}
-                            </div>
-                            <button onClick={handleSubmit} className="w-full bg-primary text-white font-bold py-4 rounded-2xl shadow-lg shadow-primary/20 active:scale-95 transition-transform flex items-center justify-center gap-2">Commencer <Icon name="arrow-right" size={20}/></button>
-                        </div>
-                    </div>
-                </div>
-            );
-        };
-
         const BottomNav = ({ active, setView }) => (
             <div className="fixed bottom-0 w-full bg-[#1C1C1E]/95 backdrop-blur-xl border-t border-white/5 pb-safe pt-2 px-6 flex justify-between z-50">
                 {[{ id: 'HOME', icon: 'layout-grid', label: 'Accueil' }, { id: 'NOTES', icon: 'graduation-cap', label: 'Notes' }, { id: 'AGENDA', icon: 'calendar', label: 'Agenda' }, { id: 'LIFE', icon: 'coffee', label: 'Vie Étud.' }, { id: 'SETTINGS', icon: 'user', label: 'Compte' }].map(item => (
@@ -256,7 +209,6 @@
                                 <button onClick={add} className="w-full bg-primary text-white py-3.5 rounded-xl font-bold text-sm shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all active:scale-95">Confirmer</button>
                             </div>
                             <div className="space-y-3">
-                                <label className="text-xs font-bold text-subtext uppercase tracking-wider px-1">Historique</label>
                                 {localGrades.length===0 ? <p className="text-center text-sm text-subtext py-6 bg-white/5 rounded-xl border-dashed border border-white/10">Aucune note enregistrée</p> : localGrades.slice().reverse().map(g=>(
                                     <div key={g.id} className="flex justify-between items-center bg-[#252525] p-4 rounded-xl border border-white/5">
                                         <div><div className="font-bold text-sm text-white">{g.name}</div><div className="text-xs text-subtext font-medium mt-0.5">Coef {g.coef}</div></div>
@@ -281,6 +233,26 @@
                 <span className="font-bold text-sm text-subtext">{label}</span>
                 <input type="number" value={value || ''} onChange={e => onChange(e.target.value)} className="w-20 bg-black/50 border border-white/10 rounded-lg p-2.5 text-center font-mono font-bold text-white focus:border-primary outline-none" placeholder="--" />
             </div>
+        );
+
+        // --- NEW & MISSING COMPONENTS RESTORED ---
+        
+        const UESection = ({ title, ueKey, modules, gradesMap, absences, onModuleClick, onAbsenceUpdate, avg }) => (
+            <div className="space-y-3 mb-6"><div className="flex justify-between items-center bg-cardHover/50 p-3 rounded-xl border border-white/5"><h3 className="text-sm font-bold text-primary uppercase tracking-wider">{title}</h3><div className="text-white font-mono font-bold bg-black/40 px-2 py-1 rounded text-sm">{avg}</div></div>{modules.filter(m => m[ueKey] > 0).map(module => { const avg = calcAvg(gradesMap[module.id]); const absCount = absences[module.id] || 0; return (<div key={module.id} className="bg-[#1c1c1e] p-4 rounded-2xl flex justify-between items-center widget-hover cursor-pointer border border-white/5 active:scale-95 transition-transform" onClick={() => onModuleClick(module)}><div className="flex items-center gap-4"><div className="flex flex-col"><div className="font-bold text-white text-base">{module.label}</div><div className="text-xs text-subtext flex gap-2 items-center mt-0.5"><span className="opacity-70">{module.short}</span><span className="bg-white/10 px-1.5 rounded text-[9px] text-white/80">Coef {module[ueKey]}</span></div></div></div><div className="text-right flex flex-col items-end gap-1"><div className={`font-mono font-bold text-lg ${getGradeColor(avg)}`}>{avg || "—"}</div><div className="flex items-center gap-1 bg-black/50 rounded-lg p-0.5 border border-white/5" onClick={e=>e.stopPropagation()}><button onClick={()=>onAbsenceUpdate(module.id, -1)} className="w-6 h-6 flex items-center justify-center hover:bg-white/10 rounded text-subtext active:text-white active:bg-white/10"><Icon name="minus" size={10}/></button><span className={`text-[10px] font-bold w-4 text-center ${absCount>0?'text-danger':'text-subtext'}`}>{absCount}</span><button onClick={()=>onAbsenceUpdate(module.id, 1)} className="w-6 h-6 flex items-center justify-center hover:bg-white/10 rounded text-subtext active:text-white active:bg-white/10"><Icon name="plus" size={10}/></button></div></div></div>); })}</div>
+        );
+
+        const CustomLinksWidget = ({ links, onAdd, onDelete }) => {
+            const [name, setName] = useState('');
+            const [url, setUrl] = useState('');
+            const [showForm, setShowForm] = useState(false);
+            const handleAdd = () => { if(name && url) { onAdd({ id: Date.now(), name, url }); setName(''); setUrl(''); setShowForm(false); } };
+            return (
+                <div className="space-y-3"><div className="flex justify-between items-center"><h2 className="text-xl font-bold">Mes Liens</h2><button onClick={() => setShowForm(!showForm)} className="text-primary text-xs font-bold bg-primary/10 px-2 py-1 rounded-lg">{showForm ? 'Annuler' : '+ Ajouter'}</button></div>{showForm && (<div className="bg-card p-3 rounded-xl border border-white/10 space-y-2 animate-in slide-in-from-top-2"><input value={name} onChange={e=>setName(e.target.value)} placeholder="Nom du lien" className="w-full bg-black/30 p-2 rounded text-sm border border-white/5 outline-none"/><input value={url} onChange={e=>setUrl(e.target.value)} placeholder="https://..." className="w-full bg-black/30 p-2 rounded text-sm border border-white/5 outline-none"/><button onClick={handleAdd} className="w-full bg-primary text-white py-2 rounded text-xs font-bold">Sauvegarder</button></div>)}<div className="grid grid-cols-2 gap-3">{links.map(link => (<div key={link.id} className="relative group"><a href={link.url} target="_blank" className="bg-card p-3 rounded-xl border border-white/5 flex items-center gap-3 hover:bg-white/5 transition-colors"><div className="w-8 h-8 rounded-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center text-white"><Icon name="link" size={14}/></div><span className="font-bold text-sm truncate">{link.name}</span></a><button onClick={() => onDelete(link.id)} className="absolute -top-1 -right-1 bg-danger text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"><Icon name="x" size={10}/></button></div>))}</div></div>
+            );
+        };
+
+        const CampusMapModal = ({ onClose }) => (
+            <div className="fixed inset-0 z-[60] flex items-center justify-center glass-modal p-4 animate-in fade-in"><div className="bg-card w-full max-w-sm rounded-2xl border border-white/10 overflow-hidden"><div className="p-4 border-b border-white/10 flex justify-between items-center"><h3 className="font-bold text-lg">Carte Campus</h3><button onClick={onClose}><Icon name="x"/></button></div><div className="p-4 space-y-2">{[{name:'IUT Gratte-Ciel', url:'https://goo.gl/maps/XYZ'}, {name:'Département GEII', url:'https://goo.gl/maps/ABC'}, {name:'Resto U', url:'https://goo.gl/maps/DEF'}].map((loc, i) => (<a key={i} href={loc.url} target="_blank" className="flex items-center justify-between p-3 bg-white/5 rounded-xl hover:bg-white/10"><span className="font-bold text-sm">{loc.name}</span><Icon name="map-pin" size={16} className="text-primary"/></a>))}</div></div></div>
         );
 
         const TargetSimulator = () => {
@@ -422,19 +394,16 @@
             <a href={LINKS.TCL} target="_blank" className="fintech-card p-5 border border-white/5 flex flex-col justify-between active:scale-95 transition-transform hover:bg-cardHover"><div className="flex justify-between items-start"><div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center text-red-500"><Icon name="train" size={20}/></div><div className="flex gap-1.5"><span className="w-2 h-2 rounded-full bg-success"></span><span className="w-2 h-2 rounded-full bg-warning animate-pulse"></span></div></div><div><div className="font-bold text-base mt-2">Info Trafic</div><div className="text-xs text-subtext font-medium flex items-center gap-1 mt-1">TCL Direct <Icon name="arrow-up-right" size={10}/></div></div></a>
         );
 
-        const UESection = ({ title, ueKey, modules, gradesMap, absences, onModuleClick, onAbsenceUpdate, avg }) => (
-            <div className="space-y-3 mb-6"><div className="flex justify-between items-center bg-cardHover/50 p-3 rounded-xl border border-white/5"><h3 className="text-sm font-bold text-primary uppercase tracking-wider">{title}</h3><div className="text-white font-mono font-bold bg-black/40 px-2 py-1 rounded text-sm">{avg}</div></div>{modules.filter(m => m[ueKey] > 0).map(module => { const avg = calcAvg(gradesMap[module.id]); const absCount = absences[module.id] || 0; return (<div key={module.id} className="bg-[#1c1c1e] p-4 rounded-2xl flex justify-between items-center widget-hover cursor-pointer border border-white/5 active:scale-95 transition-transform" onClick={() => onModuleClick(module)}><div className="flex items-center gap-4"><div className="flex flex-col"><div className="font-bold text-white text-base">{module.label}</div><div className="text-xs text-subtext flex gap-2 items-center mt-0.5"><span className="opacity-70">{module.short}</span><span className="bg-white/10 px-1.5 rounded text-[9px] text-white/80">Coef {module[ueKey]}</span></div></div></div><div className="text-right flex flex-col items-end gap-1"><div className={`font-mono font-bold text-lg ${getGradeColor(avg)}`}>{avg || "—"}</div><div className="flex items-center gap-1 bg-black/50 rounded-lg p-0.5 border border-white/5" onClick={e=>e.stopPropagation()}><button onClick={()=>onAbsenceUpdate(module.id, -1)} className="w-6 h-6 flex items-center justify-center hover:bg-white/10 rounded text-subtext active:text-white active:bg-white/10"><Icon name="minus" size={10}/></button><span className={`text-[10px] font-bold w-4 text-center ${absCount>0?'text-danger':'text-subtext'}`}>{absCount}</span><button onClick={()=>onAbsenceUpdate(module.id, 1)} className="w-6 h-6 flex items-center justify-center hover:bg-white/10 rounded text-subtext active:text-white active:bg-white/10"><Icon name="plus" size={10}/></button></div></div></div>); })}</div>
-        );
-
         // --- MAIN APP ---
         const App = () => {
             const [view, setView] = useState('HOME');
             const [user, setUser] = useState(null);
             const [semester, setSemester] = useState(2);
+            const [visibleUEs, setVisibleUEs] = useState({ 21: true, 22: true });
             const [events, setEvents] = useState([]);
             const [allEvents, setAllEvents] = useState([]); 
             const [announcements, setAnnouncements] = useState([]);
-            const [profile, setProfile] = useState({ firstName: '', lastName: '', group: '', email: '', ine: '', adeUrl: DEFAULT_ADE });
+            const [profile, setProfile] = useState({ firstName: 'Étudiant', lastName: '', group: '', email: '', ine: '', adeUrl: DEFAULT_ADE });
             const [history, setHistory] = useState({ s1: { ue11: '', ue12: '' }, s3: { ue31: '', ue32: '' }, s4: { ue41: '', ue42: '' } });
             const [s2Grades, setS2Grades] = useState({});
             const [absences, setAbsences] = useState({});
@@ -442,6 +411,7 @@
             const [quickNote, setQuickNote] = useState('');
             const [selectedModule, setSelectedModule] = useState(null);
             const [customLinks, setCustomLinks] = useState([]);
+            const [showMap, setShowMap] = useState(false);
             const [needsOnboarding, setNeedsOnboarding] = useState(true);
 
             const dbRef = useRef(null);
@@ -471,7 +441,7 @@
                     while (!window.firebaseModules && attempts < 20) { await new Promise(r => setTimeout(r, 100)); attempts++; }
                     if (!window.firebaseModules) return fallbackToLocal();
 
-                    const { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, getFirestore, doc, onSnapshot, collection, query } = window.firebaseModules;
+                    const { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, getFirestore, doc, onSnapshot, collection, query, orderBy } = window.firebaseModules;
                     
                     try {
                         const app = initializeApp(JSON.parse(__firebase_config));
@@ -635,6 +605,7 @@
                             </div>
                         </div>
                     )}
+                    {showMap && <CampusMapModal onClose={()=>setShowMap(false)} />}
 
                     <header className="p-6 pt-12 flex justify-between items-center bg-gradient-to-b from-primary/10 to-transparent sticky top-0 z-40 backdrop-blur-md">
                         <div><div className="text-xs font-bold text-primary mb-1 uppercase tracking-wider">Espace Étudiant</div><h1 className="text-3xl font-bold tracking-tight">Bonjour {profile.firstName}</h1></div>
@@ -675,7 +646,9 @@
                                             <button onClick={()=>setVisibleUEs({...visibleUEs, 21: !visibleUEs[21]})} className={`flex-1 py-3 rounded-xl text-xs font-bold border transition-all ${visibleUEs[21]?'bg-primary text-white border-primary shadow-lg shadow-primary/20':'bg-card text-subtext border-border'}`}>UE21 • Concevoir</button>
                                             <button onClick={()=>setVisibleUEs({...visibleUEs, 22: !visibleUEs[22]})} className={`flex-1 py-3 rounded-xl text-xs font-bold border transition-all ${visibleUEs[22]?'bg-white text-black border-white shadow-lg shadow-white/10':'bg-card text-subtext border-border'}`}>UE22 • Vérifier</button>
                                         </div>
+                                        
                                         <TargetSimulator />
+
                                         {visibleUEs[21] && <UESection title="UE21 - Concevoir" ueKey="coef21" avg={stats.avg21} modules={MODULES_CONFIG_S2} gradesMap={s2Grades} absences={absences} onModuleClick={setSelectedModule} onAbsenceUpdate={updateAbsence} />}
                                         {visibleUEs[22] && <UESection title="UE22 - Vérifier" ueKey="coef22" avg={stats.avg22} modules={MODULES_CONFIG_S2} gradesMap={s2Grades} absences={absences} onModuleClick={setSelectedModule} onAbsenceUpdate={updateAbsence} />}
                                     </div>
@@ -696,7 +669,7 @@
 
                         {view === 'LIFE' && (
                             <div className="space-y-8 animate-in">
-                                <div><h2 className="text-3xl font-bold mb-6 tracking-tight">Campus</h2><div className="grid grid-cols-2 gap-4"><CrousWidget /><TrafficWidget /></div></div>
+                                <div><h2 className="text-3xl font-bold mb-6 tracking-tight">Campus</h2><div className="grid grid-cols-2 gap-4"><CrousWidget /><TrafficWidget /></div><button onClick={()=>setShowMap(true)} className="mt-3 w-full bg-card p-3 rounded-xl border border-white/5 flex items-center justify-center gap-2 hover:bg-white/5"><Icon name="map" size={16}/> Voir Carte Campus</button></div>
                                 <CustomLinksWidget links={customLinks} onAdd={l=>setCustomLinks([...customLinks, l])} onDelete={id=>setCustomLinks(customLinks.filter(l=>l.id!==id))} />
                                 <div><h2 className="text-3xl font-bold mb-6 tracking-tight">Liens Utiles</h2><div className="grid grid-cols-1 gap-3">{USEFUL_LINKS.map((link, i) => (<a key={i} href={link.url} target="_blank" className="flex items-center gap-4 fintech-card p-4 border border-white/5 active:scale-98 transition-transform hover:bg-cardHover"><div className={`w-12 h-12 rounded-full ${link.color} flex items-center justify-center text-white shadow-lg`}><Icon name={link.icon} size={20} /></div><span className="font-bold text-base">{link.name}</span><Icon name="chevron-right" size={20} className="ml-auto text-subtext/50"/></a>))}</div></div>
                             </div>
