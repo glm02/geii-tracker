@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>GEII OS v8.6</title>
+    <title>GEII OS v9.4</title>
     
     <!-- React & Dependencies -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
@@ -48,11 +48,13 @@
     <style>
         body { background-color: #09090b; color: #fff; -webkit-font-smoothing: antialiased; }
         .glass { background: rgba(39, 39, 42, 0.4); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.05); }
-        .glass-modal { background: rgba(0, 0, 0, 0.95); backdrop-filter: blur(10px); }
+        .glass-modal { background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(8px); }
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
         .page-enter { animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .pulse-active { animation: pulseBorder 2s infinite; }
+        @keyframes pulseBorder { 0% { border-color: rgba(59, 130, 246, 0.5); } 50% { border-color: rgba(59, 130, 246, 1); } 100% { border-color: rgba(59, 130, 246, 0.5); } }
     </style>
 </head>
 <body>
@@ -70,7 +72,9 @@
             DOCS: "https://wwwgeii.univ-lyon1.fr/depot_certif/view_user_docs.php",
             MOODLE: "https://moodle.univ-lyon1.fr/",
             MIRE: "https://wwwgeii.univ-lyon1.fr/mire_geii.php",
-            CROUS: "https://www.crous-lyon.fr/restaurant/restaurant-iut-gratte-ciel/"
+            CROUS: "https://www.crous-lyon.fr/restaurant/resto-u-gratte-ciel/",
+            MEDIA: "https://mediatheques.villeurbanne.fr/",
+            TCL: "https://www.tcl.fr/se-deplacer/info-trafic"
         };
 
         const USEFUL_LINKS = [
@@ -78,7 +82,8 @@
             { name: 'Mire GEII', url: LINKS.MIRE, color: 'bg-emerald-500', icon: 'file-text' },
             { name: 'ADE Direct', url: LINKS.ADE, color: 'bg-indigo-500', icon: 'calendar' },
             { name: 'Mail Univ', url: LINKS.MAIL, color: 'bg-sky-500', icon: 'mail' },
-            { name: 'Justificatifs', url: LINKS.DOCS, color: 'bg-purple-500', icon: 'paperclip' }
+            { name: 'Justificatifs', url: LINKS.DOCS, color: 'bg-purple-500', icon: 'paperclip' },
+            { name: 'Info Trafic TCL', url: LINKS.TCL, color: 'bg-red-500', icon: 'train' }
         ];
 
         const MODULES_CONFIG_S2 = [
@@ -253,44 +258,129 @@
             </div>
         );
 
-        const AgendaList = ({ events, profile, onExpand }) => {
-            const grouped = events.reduce((acc, event) => {
+        // --- SMART AGENDA WIDGETS ---
+        const SmartAgendaList = ({ events, profile, onExpand }) => {
+            const [weekOffset, setWeekOffset] = useState(0);
+
+            // Calculer le début de la semaine (Lundi) en fonction de l'offset
+            const getWeekRange = (offset) => {
+                const now = new Date();
+                const day = now.getDay(); // 0 is Sunday
+                
+                // Adjust to make Monday the first day
+                const diff = now.getDate() - day + (day === 0 ? -6 : 1) + (offset * 7);
+                
+                const monday = new Date(now.setDate(diff));
+                monday.setHours(0,0,0,0);
+                
+                const sunday = new Date(monday);
+                sunday.setDate(monday.getDate() + 6);
+                sunday.setHours(23,59,59,999);
+                
+                return { start: monday, end: sunday };
+            };
+
+            const { start, end } = getWeekRange(weekOffset);
+
+            // Filter events for the selected week
+            const weekEvents = events.filter(e => e.start >= start && e.start <= end);
+
+            const grouped = weekEvents.reduce((acc, event) => {
                 const dateKey = event.start.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
                 if (!acc[dateKey]) acc[dateKey] = [];
                 acc[dateKey].push(event);
                 return acc;
             }, {});
 
-            if (Object.keys(grouped).length === 0) return <div className="text-center py-10 text-subtext">Aucun cours trouvé pour cette semaine.</div>;
+            // Helper: Déterminer le type et la couleur du cours
+            const getCourseStyle = (summary) => {
+                const s = summary.toLowerCase();
+                if (s.includes('ds') || s.includes('exam') || s.includes('controle')) return { type: 'DS', color: 'border-l-danger bg-danger/5 text-danger', badge: 'bg-danger text-white' };
+                if (s.includes('amphi') || s.includes('cm')) return { type: 'CM', color: 'border-l-purple-500 bg-purple-500/5', badge: 'bg-purple-500/20 text-purple-400' };
+                if (s.includes('tp')) return { type: 'TP', color: 'border-l-blue-500 bg-blue-500/5', badge: 'bg-blue-500/20 text-blue-400' };
+                if (s.includes('td')) return { type: 'TD', color: 'border-l-green-500 bg-green-500/5', badge: 'bg-green-500/20 text-green-400' };
+                return { type: 'Cours', color: 'border-l-white/20 bg-white/5', badge: 'bg-white/10 text-subtext' };
+            };
 
             return (
-                <div className="space-y-6">
-                    {/* BOUTON AGRANDIR VUE */}
+                <div className="space-y-4">
+                    {/* Navigation Semaine */}
+                    <div className="flex justify-between items-center bg-card p-2 rounded-xl border border-border">
+                        <button onClick={() => setWeekOffset(weekOffset - 1)} className="p-2 hover:bg-white/5 rounded-lg"><Icon name="chevron-left" size={20}/></button>
+                        <div className="text-center">
+                            <div className="text-[10px] text-subtext uppercase font-bold">Semaine du</div>
+                            <div className="text-sm font-bold">{start.toLocaleDateString('fr-FR', {day: 'numeric', month: 'short'})}</div>
+                        </div>
+                        <button onClick={() => setWeekOffset(weekOffset + 1)} className="p-2 hover:bg-white/5 rounded-lg"><Icon name="chevron-right" size={20}/></button>
+                    </div>
+
+                    {/* Expand Button for Home View */}
+                    {onExpand && (
                     <div className="flex justify-end">
                         <button onClick={onExpand} className="bg-white/5 border border-white/10 text-xs px-3 py-2 rounded-lg flex items-center gap-2 hover:bg-white/10 transition-colors">
                             <Icon name="maximize-2" size={14}/> Agrandir l'agenda
                         </button>
                     </div>
+                    )}
 
-                    {Object.entries(grouped).map(([date, dayEvents], index) => (
-                        <div key={index}>
-                            <h3 className="text-xs font-bold text-primary uppercase sticky top-0 bg-bg/95 backdrop-blur py-2 z-10">{date}</h3>
-                            <div className="space-y-2 mt-2">
-                                {dayEvents.map((e, i) => (
-                                    <div key={i} className="bg-card p-3 rounded-xl border border-border flex gap-4">
-                                        <div className="flex flex-col items-center justify-center min-w-[50px] border-r border-border pr-3">
-                                            <span className="font-bold text-sm text-white">{e.start.getHours()}h{e.start.getMinutes().toString().padStart(2, '0')}</span>
-                                            <span className="text-[10px] text-subtext">{e.end.getHours()}h{e.end.getMinutes().toString().padStart(2, '0')}</span>
-                                        </div>
-                                        <div className="overflow-hidden">
-                                            <div className="font-bold text-sm text-white truncate">{e.summary}</div>
-                                            <div className="text-xs text-subtext truncate flex gap-1 items-center mt-1"><Icon name="map-pin" size={10}/> {e.location}</div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
+                    {/* Liste des cours */}
+                    {Object.keys(grouped).length === 0 ? (
+                        <div className="text-center py-10 text-subtext flex flex-col items-center gap-2">
+                            <Icon name="coffee" size={32} className="opacity-50"/>
+                            <span>Semaine libre !</span>
                         </div>
-                    ))}
+                    ) : (
+                        Object.entries(grouped).map(([date, dayEvents], index) => (
+                            <div key={index} className="animate-in slide-in-from-bottom-2 fade-in duration-500">
+                                <h3 className="text-xs font-bold text-primary uppercase sticky top-0 bg-bg/95 backdrop-blur py-2 z-10 flex items-center gap-2">
+                                    <div className="w-2 h-2 rounded-full bg-primary"></div> {date}
+                                </h3>
+                                <div className="space-y-3 mt-1">
+                                    {dayEvents.map((e, i) => {
+                                        const style = getCourseStyle(e.summary);
+                                        const now = new Date();
+                                        const isLive = now >= e.start && now <= e.end;
+                                        
+                                        // Détection de trou (Pause) si ce n'est pas le dernier cours
+                                        const nextEvent = dayEvents[i+1];
+                                        const hasGap = nextEvent && (nextEvent.start - e.end) > 45 * 60 * 1000; // > 45min
+
+                                        return (
+                                            <div key={i}>
+                                                <div className={`relative bg-card p-3 rounded-xl border border-border border-l-4 ${style.color} ${isLive ? 'pulse-active ring-1 ring-primary/50' : ''}`}>
+                                                    {isLive && <div className="absolute top-2 right-2 px-2 py-0.5 bg-primary text-white text-[9px] font-bold rounded-full animate-pulse">EN COURS</div>}
+                                                    <div className="flex gap-4">
+                                                        <div className="flex flex-col items-center justify-center min-w-[50px] border-r border-white/5 pr-3">
+                                                            <span className="font-bold text-sm text-white">{e.start.getHours()}h{e.start.getMinutes().toString().padStart(2, '0')}</span>
+                                                            <span className="text-[10px] text-subtext">{e.end.getHours()}h{e.end.getMinutes().toString().padStart(2, '0')}</span>
+                                                        </div>
+                                                        <div className="overflow-hidden flex-1">
+                                                            <div className="flex justify-between items-start">
+                                                                <div className="font-bold text-sm text-white truncate pr-6">{e.summary}</div>
+                                                            </div>
+                                                            <div className="flex items-center gap-2 mt-1">
+                                                                <span className={`text-[9px] px-1.5 py-0.5 rounded ${style.badge}`}>{style.type}</span>
+                                                                <div className="text-xs text-subtext truncate flex gap-1 items-center"><Icon name="map-pin" size={10}/> {e.location || 'Salle inconnue'}</div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                {hasGap && (
+                                                    <div className="flex items-center justify-center my-2 gap-2 opacity-50">
+                                                        <div className="h-8 w-[1px] bg-white/20"></div>
+                                                        <div className="text-[10px] text-subtext italic bg-white/5 px-3 py-1 rounded-full flex items-center gap-1">
+                                                            <Icon name="coffee" size={10}/> Pause / Révisions ({Math.round((nextEvent.start - e.end)/60000)} min)
+                                                        </div>
+                                                        <div className="h-8 w-[1px] bg-white/20"></div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        ))
+                    )}
                 </div>
             );
         };
@@ -325,6 +415,70 @@
                             </div>
                         );
                     })}
+                </div>
+            );
+        };
+
+        const PomodoroWidget = () => {
+            const [timeLeft, setTimeLeft] = useState(25 * 60);
+            const [isActive, setIsActive] = useState(false);
+            const [isBreak, setIsBreak] = useState(false);
+
+            useEffect(() => {
+                let interval = null;
+                if (isActive && timeLeft > 0) {
+                    interval = setInterval(() => setTimeLeft(timeLeft - 1), 1000);
+                } else if (timeLeft === 0) {
+                    setIsActive(false);
+                    setIsBreak(!isBreak);
+                    setTimeLeft(isBreak ? 25 * 60 : 5 * 60);
+                }
+                return () => clearInterval(interval);
+            }, [isActive, timeLeft, isBreak]);
+
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+
+            return (
+                <div onClick={(e) => e.stopPropagation()} className="w-full h-full flex flex-col justify-between items-center">
+                     <div className="text-xs font-bold uppercase text-subtext mb-1">{isBreak ? 'Pause ☕' : 'Focus 🔥'}</div>
+                     <div className="text-2xl font-mono font-bold mb-2">{minutes}:{seconds < 10 ? `0${seconds}` : seconds}</div>
+                     <button 
+                        onClick={() => setIsActive(!isActive)} 
+                        className={`px-3 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${isActive ? 'bg-red-500/20 text-red-500' : 'bg-primary/20 text-primary'}`}
+                     >
+                        {isActive ? 'Stop' : 'Start'}
+                     </button>
+                </div>
+            );
+        };
+
+        const TargetSimulator = () => {
+            const [currentAvg, setCurrentAvg] = useState('');
+            const [target, setTarget] = useState('');
+            const [coefNext, setCoefNext] = useState('');
+            const [result, setResult] = useState(null);
+
+            const calculate = () => {
+                const cur = parseFloat(currentAvg);
+                const tar = parseFloat(target);
+                const coef = parseFloat(coefNext);
+                if (cur && tar && coef) {
+                    const needed = ((tar * (1 + coef)) - cur) / coef;
+                    setResult(needed.toFixed(2));
+                }
+            };
+
+            return (
+                <div className="bg-card p-4 rounded-2xl border border-border space-y-3">
+                    <h3 className="font-bold text-sm flex gap-2 text-primary"><Icon name="target" size={16}/> Simulateur Objectif</h3>
+                    <div className="flex gap-2">
+                        <input type="number" placeholder="Moy. Actuelle" value={currentAvg} onChange={e=>setCurrentAvg(e.target.value)} className="w-full bg-black/30 p-2 rounded text-xs border border-white/10"/>
+                        <input type="number" placeholder="Visé" value={target} onChange={e=>setTarget(e.target.value)} className="w-full bg-black/30 p-2 rounded text-xs border border-white/10"/>
+                        <input type="number" placeholder="Coef" value={coefNext} onChange={e=>setCoefNext(e.target.value)} className="w-16 bg-black/30 p-2 rounded text-xs border border-white/10"/>
+                    </div>
+                    <button onClick={calculate} className="w-full bg-white/5 py-1 rounded text-xs font-bold hover:bg-white/10">Calculer</button>
+                    {result && <div className="text-center text-sm">Il faut : <span className={`font-bold ${result > 20 ? 'text-danger' : 'text-success'}`}>{result}/20</span></div>}
                 </div>
             );
         };
@@ -389,6 +543,55 @@
             );
         };
 
+        const Scratchpad = ({ note, onChange }) => (
+            <div className="glass p-4 rounded-2xl flex flex-col gap-2">
+                <div className="flex items-center gap-2 text-xs font-bold text-subtext uppercase">
+                    <Icon name="edit-3" size={14}/> Notes Rapides
+                </div>
+                <textarea 
+                    value={note} 
+                    onChange={e => onChange(e.target.value)} 
+                    placeholder="Salle, code, rappel..." 
+                    className="bg-transparent border-none outline-none text-sm resize-none h-16 w-full text-white placeholder-white/20"
+                />
+            </div>
+        );
+
+        const CrousWidget = () => {
+            const hour = new Date().getHours();
+            const isOpen = hour >= 11 && hour < 14;
+            return (
+                <a href={LINKS.CROUS} target="_blank" className="bg-[#1c1c1e] p-4 rounded-2xl border border-white/5 flex flex-col justify-between active:scale-95 transition-transform">
+                    <div className="flex justify-between items-start">
+                        <Icon name="utensils" className="text-orange-500" />
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full border ${isOpen ? 'bg-success/10 text-success border-success/20' : 'bg-danger/10 text-danger border-danger/20'}`}>
+                            {isOpen ? 'Ouvert' : 'Fermé'}
+                        </span>
+                    </div>
+                    <div>
+                        <div className="font-bold text-sm">Crous Gratte-Ciel</div>
+                        <div className="text-[10px] text-subtext flex items-center gap-1">Voir le menu <Icon name="external-link" size={10}/></div>
+                    </div>
+                </a>
+            );
+        };
+
+        const TrafficWidget = () => (
+            <a href={LINKS.TCL} target="_blank" className="bg-[#1c1c1e] p-4 rounded-2xl border border-white/5 flex flex-col justify-between active:scale-95 transition-transform">
+                <div className="flex justify-between items-start">
+                    <Icon name="train" className="text-red-500" />
+                    <div className="flex gap-1">
+                        <span className="w-2 h-2 rounded-full bg-success"></span>
+                        <span className="w-2 h-2 rounded-full bg-warning"></span>
+                    </div>
+                </div>
+                <div>
+                    <div className="font-bold text-sm">Info Trafic TCL</div>
+                    <div className="text-[10px] text-subtext flex items-center gap-1">Métro A, T1, C3...</div>
+                </div>
+            </a>
+        );
+
         // --- MAIN APP ---
         const App = () => {
             const [view, setView] = useState('HOME');
@@ -396,13 +599,15 @@
             const [semester, setSemester] = useState(2);
             const [visibleUEs, setVisibleUEs] = useState({ 21: true, 22: true });
             const [events, setEvents] = useState([]);
-            const [allEvents, setAllEvents] = useState([]); // Store ALL events for full view
+            const [allEvents, setAllEvents] = useState([]); 
             const [announcements, setAnnouncements] = useState([]);
             const [profile, setProfile] = useState({ firstName: 'Étudiant', lastName: '', group: '', email: '', ine: '', adeUrl: DEFAULT_ADE });
             const [history, setHistory] = useState({ s1: { ue11: '', ue12: '' }, s3: { ue31: '', ue32: '' }, s4: { ue41: '', ue42: '' } });
             const [s2Grades, setS2Grades] = useState({});
             const [taskStatus, setTaskStatus] = useState({});
+            const [quickNote, setQuickNote] = useState('');
             const [selectedModule, setSelectedModule] = useState(null);
+            const [customLinks, setCustomLinks] = useState([]);
             
             const dbRef = useRef(null);
             const appIdRef = useRef(typeof __app_id !== 'undefined' ? __app_id : 'default-fintech-app');
@@ -411,11 +616,13 @@
             useEffect(() => {
                 const init = async () => {
                     const fallbackToLocal = () => {
-                        const local = JSON.parse(localStorage.getItem('geii_v8_local') || '{}');
+                        const local = JSON.parse(localStorage.getItem('geii_v9_local') || '{}');
                         if (local.profile) setProfile(local.profile);
                         if (local.s2Grades) setS2Grades(local.s2Grades);
                         if (local.history) setHistory(local.history);
                         if (local.taskStatus) setTaskStatus(local.taskStatus);
+                        if (local.quickNote) setQuickNote(local.quickNote);
+                        if (local.customLinks) setCustomLinks(local.customLinks);
                         setUser({ uid: 'local_mode_user' });
                     };
 
@@ -446,6 +653,8 @@
                                         if (d.profile) setProfile(d.profile);
                                         if (d.history) setHistory(d.history);
                                         if (d.taskStatus) setTaskStatus(d.taskStatus);
+                                        if (d.quickNote) setQuickNote(d.quickNote);
+                                        if (d.customLinks) setCustomLinks(d.customLinks);
                                     }
                                 }, () => fallbackToLocal());
 
@@ -465,15 +674,15 @@
             // Save Data
             useEffect(() => {
                 if (!user) return;
-                const data = { profile, s2Grades, history, taskStatus };
-                localStorage.setItem('geii_v8_local', JSON.stringify(data));
+                const data = { profile, s2Grades, history, taskStatus, quickNote, customLinks };
+                localStorage.setItem('geii_v9_local', JSON.stringify(data));
                 if (dbRef.current && user.uid !== 'local_mode_user') {
                     const { doc, setDoc } = window.firebaseModules;
                     setDoc(doc(dbRef.current, 'artifacts', appIdRef.current, 'users', user.uid, 'data', 'main'), data, { merge: true }).catch(()=>{});
                 }
-            }, [profile, s2Grades, history, taskStatus, user]);
+            }, [profile, s2Grades, history, taskStatus, quickNote, customLinks, user]);
 
-            // Agenda Fetch - Full Logic
+            // Agenda Fetch - Full Week
             useEffect(() => {
                 if(profile.adeUrl) {
                     const fetchSchedule = async () => {
@@ -481,18 +690,16 @@
                             const res = await fetch('https://corsproxy.io/?' + encodeURIComponent(profile.adeUrl));
                             const text = await res.text();
                             const parsed = parseICS(text);
+                            setAllEvents(parsed);
                             
-                            setAllEvents(parsed); // Store ALL events for full view
-
                             // Get Monday of current week logic or next week if weekend
                             const d = new Date();
                             const day = d.getDay();
                             
-                            // IF WEEKEND (Sat or Sun), show NEXT WEEK
                             let mondayDiff;
-                            if (day === 0) mondayDiff = 1; // Sunday -> Next Monday (+1 day)
-                            else if (day === 6) mondayDiff = 2; // Saturday -> Next Monday (+2 days)
-                            else mondayDiff = 1 - day; // Weekday -> Previous/Current Monday
+                            if (day === 0) mondayDiff = 1; 
+                            else if (day === 6) mondayDiff = 2; 
+                            else mondayDiff = 1 - day;
 
                             const monday = new Date();
                             monday.setDate(d.getDate() + mondayDiff);
@@ -509,8 +716,8 @@
                 }
             }, [profile.adeUrl]);
 
-            // Stats
-            const statsS2 = useMemo(() => {
+            // Stats & Level
+            const stats = useMemo(() => {
                 let p21=0, c21=0, p22=0, c22=0;
                 MODULES_CONFIG_S2.forEach(m => {
                     const avg = parseFloat(calcAvg(s2Grades[m.id]));
@@ -522,8 +729,18 @@
                 const avg21 = c21 ? (p21/c21).toFixed(2) : null;
                 const avg22 = c22 ? (p22/c22).toFixed(2) : null;
                 const global = (avg21 && avg22) ? ((parseFloat(avg21)+parseFloat(avg22))/2).toFixed(2) : null;
-                return { avg21, avg22, global };
-            }, [s2Grades]);
+                
+                // GAMIFICATION LOGIC
+                const tasksDone = Object.values(taskStatus).filter(Boolean).length;
+                const avgScore = global ? parseFloat(global) * 100 : 0;
+                const xp = Math.round(avgScore + (tasksDone * 50));
+                let level = "Novice";
+                if(xp > 1500) level = "Confirmé";
+                if(xp > 2500) level = "Expert";
+                if(xp > 3500) level = "Major";
+
+                return { avg21, avg22, global, xp, level };
+            }, [s2Grades, taskStatus]);
 
             if (!user) return <div className="h-screen bg-black flex items-center justify-center text-white"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>;
 
@@ -539,8 +756,7 @@
                                 <button onClick={() => setView('AGENDA')} className="p-2 bg-card rounded-full border border-border text-subtext"><Icon name="x" size={20}/></button>
                             </div>
                             <div className="p-4 pb-10">
-                                {/* Show all future events */}
-                                <AgendaList events={allEvents.filter(e => e.start >= new Date()).slice(0, 50)} profile={profile} /> 
+                                <SmartAgendaList events={allEvents.filter(e => e.start >= new Date()).slice(0, 50)} profile={profile} /> 
                             </div>
                         </div>
                     )}
@@ -556,10 +772,15 @@
                         {view === 'HOME' && (
                             <div className="space-y-4 animate-in">
                                 <div className="grid grid-cols-2 gap-3">
-                                    <WeatherWidget />
-                                    <div onClick={()=>setView('NOTES')} className="glass p-4 rounded-2xl flex flex-col justify-center items-center text-center cursor-pointer active:scale-95 transition-transform"><Icon name="calculator" size={24} className="text-primary mb-2"/><div className="text-xs text-subtext uppercase font-bold">Moyenne S2</div><div className="text-3xl font-bold">{statsS2.global || '--'}</div></div>
+                                    <div className="glass p-4 rounded-2xl flex flex-col justify-center items-center text-center cursor-pointer active:scale-95 transition-transform"><PomodoroWidget /></div>
+                                    <div onClick={()=>setView('NOTES')} className="glass p-4 rounded-2xl flex flex-col justify-center items-center text-center cursor-pointer active:scale-95 transition-transform"><Icon name="calculator" size={24} className="text-primary mb-2"/><div className="text-xs text-subtext uppercase font-bold">Moyenne S2</div><div className="text-3xl font-bold">{stats.global || '--'}</div></div>
                                 </div>
-                                <div className="bg-card p-4 rounded-2xl border border-white/5"><h3 className="font-bold mb-3 flex items-center gap-2">Prochains cours</h3>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <UpcomingDeadline tasks={TASKS_DATA} taskStatus={taskStatus} />
+                                    <Scratchpad note={quickNote} onChange={setQuickNote} />
+                                </div>
+                                <SemesterProgress />
+                                <div className="bg-card p-4 rounded-2xl border border-white/5"><h3 className="font-bold mb-3 flex items-center gap-2">Mon Planning (Semaine)</h3>
                                 {events.length > 0 ? events.slice(0, 5).map((e, i) => (<div key={i} className="flex gap-4 mb-3 last:mb-0"><div className="text-xs font-bold text-subtext w-10 pt-1">{e.start.getHours()}h{e.start.getMinutes()||'00'}</div><div className="flex-1 bg-white/5 p-2 rounded-lg"><div className="font-bold text-sm">{e.summary}</div><div className="text-xs text-subtext">{e.location}</div></div></div>)) : <div className="text-center text-xs text-subtext py-4">Rien à l'horizon 🏖️</div>}
                                 </div>
                             </div>
@@ -574,8 +795,11 @@
                                             <button onClick={()=>setVisibleUEs({...visibleUEs, 21: !visibleUEs[21]})} className={`px-3 py-1 rounded-lg text-xs border ${visibleUEs[21]?'bg-primary text-white border-primary':'bg-card text-subtext border-border'}`}>UE21</button>
                                             <button onClick={()=>setVisibleUEs({...visibleUEs, 22: !visibleUEs[22]})} className={`px-3 py-1 rounded-lg text-xs border ${visibleUEs[22]?'bg-accent text-white border-accent':'bg-card text-subtext border-border'}`}>UE22</button>
                                         </div>
-                                        {visibleUEs[21] && <div className="bg-card p-4 rounded-2xl border border-border"><div className="flex justify-between mb-4"><h3 className="font-bold text-primary">UE21 - Concevoir</h3><span className="font-mono font-bold">{statsS2.avg21 || '--'}</span></div><div className="space-y-2">{MODULES_CONFIG_S2.filter(m=>m.coef21>0).map(m=>(<div key={m.id} onClick={()=>setSelectedModule(m)} className="flex justify-between p-2 hover:bg-white/5 rounded-lg cursor-pointer"><div><div className="font-bold text-sm">{m.label}</div><div className="text-[10px] text-subtext">Coef {m.coef21}</div></div><div className={`font-mono font-bold ${getGradeColor(calcAvg(s2Grades[m.id]))}`}>{calcAvg(s2Grades[m.id]) || "—"}</div></div>))}</div></div>}
-                                        {visibleUEs[22] && <div className="bg-card p-4 rounded-2xl border border-border"><div className="flex justify-between mb-4"><h3 className="font-bold text-accent">UE22 - Vérifier</h3><span className="font-mono font-bold">{statsS2.avg22 || '--'}</span></div><div className="space-y-2">{MODULES_CONFIG_S2.filter(m=>m.coef22>0).map(m=>(<div key={m.id} onClick={()=>setSelectedModule(m)} className="flex justify-between p-2 hover:bg-white/5 rounded-lg cursor-pointer"><div><div className="font-bold text-sm">{m.label}</div><div className="text-[10px] text-subtext">Coef {m.coef22}</div></div><div className={`font-mono font-bold ${getGradeColor(calcAvg(s2Grades[m.id]))}`}>{calcAvg(s2Grades[m.id]) || "—"}</div></div>))}</div></div>}
+                                        
+                                        <TargetSimulator />
+
+                                        {visibleUEs[21] && <div className="bg-card p-4 rounded-2xl border border-border"><div className="flex justify-between mb-4"><h3 className="font-bold text-primary">UE21 - Concevoir</h3><span className="font-mono font-bold">{stats.avg21 || '--'}</span></div><div className="space-y-2">{MODULES_CONFIG_S2.filter(m=>m.coef21>0).map(m=>(<div key={m.id} onClick={()=>setSelectedModule(m)} className="flex justify-between p-2 hover:bg-white/5 rounded-lg cursor-pointer"><div><div className="font-bold text-sm">{m.label}</div><div className="text-[10px] text-subtext">Coef {m.coef21}</div></div><div className={`font-mono font-bold ${getGradeColor(calcAvg(s2Grades[m.id]))}`}>{calcAvg(s2Grades[m.id]) || "—"}</div></div>))}</div></div>}
+                                        {visibleUEs[22] && <div className="bg-card p-4 rounded-2xl border border-border"><div className="flex justify-between mb-4"><h3 className="font-bold text-accent">UE22 - Vérifier</h3><span className="font-mono font-bold">{stats.avg22 || '--'}</span></div><div className="space-y-2">{MODULES_CONFIG_S2.filter(m=>m.coef22>0).map(m=>(<div key={m.id} onClick={()=>setSelectedModule(m)} className="flex justify-between p-2 hover:bg-white/5 rounded-lg cursor-pointer"><div><div className="font-bold text-sm">{m.label}</div><div className="text-[10px] text-subtext">Coef {m.coef22}</div></div><div className={`font-mono font-bold ${getGradeColor(calcAvg(s2Grades[m.id]))}`}>{calcAvg(s2Grades[m.id]) || "—"}</div></div>))}</div></div>}
                                     </div>
                                 ) : (
                                     <div className="space-y-4">
@@ -587,14 +811,14 @@
 
                         {view === 'AGENDA' && (
                             <div className="space-y-6 animate-in">
-                                <div><h2 className="text-2xl font-bold mb-4">Planning Semaine</h2><AgendaList events={events} profile={profile} onExpand={() => setView('FULL_AGENDA')} /></div>
+                                <div><h2 className="text-2xl font-bold mb-4">Planning Semaine</h2><SmartAgendaList events={allEvents} profile={profile} onExpand={() => setView('FULL_AGENDA')} /></div>
                                 <div><h2 className="text-2xl font-bold mb-4">QCM & Deadlines</h2><div className="bg-card p-4 rounded-2xl border border-border"><QCMList tasks={TASKS_DATA} taskStatus={taskStatus} onToggle={(id)=>{const nt={...taskStatus,[id]:!taskStatus[id]}; setTaskStatus(nt);}} /></div></div>
                             </div>
                         )}
 
                         {view === 'LIFE' && (
                             <div className="space-y-6 animate-in">
-                                <div><h2 className="text-xl font-bold mb-4">Services Campus</h2><div className="grid grid-cols-2 gap-3"><a href={LINKS.CROUS} target="_blank" className="bg-card p-4 rounded-2xl border border-border flex flex-col items-center justify-center text-center gap-2 active:scale-95 transition-transform"><Icon name="utensils" className="text-orange-500"/><span className="font-bold text-sm">Menu Crous</span></a><a href="https://www.tcl.fr/" target="_blank" className="bg-card p-4 rounded-2xl border border-border flex flex-col items-center justify-center text-center gap-2 active:scale-95 transition-transform"><Icon name="train" className="text-red-500"/><span className="font-bold text-sm">Info Trafic</span></a></div></div>
+                                <div><h2 className="text-xl font-bold mb-4">Services Campus</h2><div className="grid grid-cols-2 gap-3"><CrousWidget /><TrafficWidget /></div></div>
                                 <div><h2 className="text-xl font-bold mb-4">Liens Utiles</h2><div className="grid grid-cols-1 gap-3">{USEFUL_LINKS.map((link, i) => (<a key={i} href={link.url} target="_blank" className="flex items-center gap-4 bg-card p-3 rounded-xl border border-white/5 active:scale-95 transition-transform"><div className={`w-10 h-10 rounded-full ${link.color} flex items-center justify-center text-white shadow-lg`}><Icon name={link.icon} size={20} /></div><span className="font-bold text-sm">{link.name}</span><Icon name="chevron-right" size={16} className="ml-auto text-subtext"/></a>))}</div></div>
                             </div>
                         )}
@@ -602,6 +826,17 @@
                         {view === 'SETTINGS' && (
                             <div className="space-y-4 animate-in">
                                 <h2 className="text-xl font-bold">Mon Compte</h2>
+                                <div className="bg-gradient-to-r from-primary/20 to-purple-900/20 p-6 rounded-2xl border border-white/10 flex items-center justify-between">
+                                    <div>
+                                        <div className="text-xs uppercase font-bold text-subtext mb-1">Niveau Actuel</div>
+                                        <div className="text-2xl font-bold text-primary">{stats.level}</div>
+                                    </div>
+                                    <div className="text-right">
+                                        <div className="text-3xl font-mono font-bold">{stats.xp}</div>
+                                        <div className="text-xs uppercase font-bold text-subtext">XP Points</div>
+                                    </div>
+                                </div>
+
                                 <div className="bg-card p-4 rounded-2xl border border-white/5 space-y-4">
                                     <div><label className="text-xs text-subtext block mb-1">Prénom</label><input value={profile.firstName} onChange={e=>setProfile({...profile, firstName:e.target.value})} className="w-full bg-black/30 border border-white/5 rounded-lg p-3 text-sm focus:border-primary outline-none"/></div>
                                     <div><label className="text-xs text-subtext block mb-1">Lien ADE</label><input value={profile.adeUrl} onChange={e=>setProfile({...profile, adeUrl:e.target.value})} className="w-full bg-black/30 border border-white/5 rounded-lg p-3 text-xs font-mono"/></div>
