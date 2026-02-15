@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>GEII OS v8.4</title>
+    <title>GEII OS v8.6</title>
     
     <!-- React & Dependencies -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
@@ -14,7 +14,6 @@
 
     <!-- Firebase SDKs -->
     <script type="module">
-        import { Analytics } from "@vercel/analytics/next"
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot, collection, query, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
@@ -49,7 +48,7 @@
     <style>
         body { background-color: #09090b; color: #fff; -webkit-font-smoothing: antialiased; }
         .glass { background: rgba(39, 39, 42, 0.4); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.05); }
-        .glass-modal { background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(8px); }
+        .glass-modal { background: rgba(0, 0, 0, 0.95); backdrop-filter: blur(10px); }
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
         .page-enter { animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
@@ -71,8 +70,7 @@
             DOCS: "https://wwwgeii.univ-lyon1.fr/depot_certif/view_user_docs.php",
             MOODLE: "https://moodle.univ-lyon1.fr/",
             MIRE: "https://wwwgeii.univ-lyon1.fr/mire_geii.php",
-            CROUS: "https://www.crous-lyon.fr/restaurant/resto-u-gratte-ciel/",
-            MEDIA: "https://mediatheques.villeurbanne.fr/"
+            CROUS: "https://www.crous-lyon.fr/restaurant/resto-u-gratte-ciel/"
         };
 
         const USEFUL_LINKS = [
@@ -156,27 +154,20 @@
             return mod ? mod.label : id;
         };
 
-        // --- PARSER ICAL CORRIGÉ ---
         const parseICS = (icsData) => {
             const events = [];
             const lines = icsData.split(/\r\n|\n|\r/);
             let inEvent = false;
             let event = {};
-            
             const parseDate = (dateStr) => {
                 if (!dateStr) return null;
                 dateStr = dateStr.trim();
                 const match = dateStr.match(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})(Z)?/);
                 if (!match) return null;
                 const [, y, m, d, h, min, s, z] = match;
-                
-                if (z) {
-                    return new Date(Date.UTC(y, m-1, d, h, min, s));
-                } else {
-                    return new Date(y, m-1, d, h, min, s);
-                }
+                if (z) return new Date(Date.UTC(y, m-1, d, h, min, s));
+                else return new Date(y, m-1, d, h, min, s);
             };
-
             for (let line of lines) {
                 if (line.startsWith('BEGIN:VEVENT')) { inEvent = true; event = {}; } 
                 else if (line.startsWith('END:VEVENT')) { inEvent = false; if (event.start && event.summary) events.push(event); } 
@@ -262,9 +253,7 @@
             </div>
         );
 
-        const AgendaList = ({ events }) => {
-            if (events.length === 0) return <div className="text-center py-10 text-subtext">Aucun cours trouvé.</div>;
-
+        const AgendaList = ({ events, profile, onExpand }) => {
             const grouped = events.reduce((acc, event) => {
                 const dateKey = event.start.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
                 if (!acc[dateKey]) acc[dateKey] = [];
@@ -272,8 +261,17 @@
                 return acc;
             }, {});
 
+            if (Object.keys(grouped).length === 0) return <div className="text-center py-10 text-subtext">Aucun cours trouvé pour cette semaine.</div>;
+
             return (
                 <div className="space-y-6">
+                    {/* BOUTON AGRANDIR VUE */}
+                    <div className="flex justify-end">
+                        <button onClick={onExpand} className="bg-white/5 border border-white/10 text-xs px-3 py-2 rounded-lg flex items-center gap-2 hover:bg-white/10 transition-colors">
+                            <Icon name="maximize-2" size={14}/> Agrandir l'agenda
+                        </button>
+                    </div>
+
                     {Object.entries(grouped).map(([date, dayEvents], index) => (
                         <div key={index}>
                             <h3 className="text-xs font-bold text-primary uppercase sticky top-0 bg-bg/95 backdrop-blur py-2 z-10">{date}</h3>
@@ -298,12 +296,12 @@
         };
 
         const QCMList = ({ tasks, taskStatus, onToggle }) => {
-            const qcms = tasks.filter(t => t.type === 'QCM').sort((a,b) => new Date(a.end) - new Date(b.end));
+            const allTasks = [...tasks].sort((a,b) => new Date(a.end) - new Date(b.end));
             const now = new Date();
 
             return (
                 <div className="space-y-2">
-                    {qcms.map((task, i) => {
+                    {allTasks.map((task, i) => {
                         const uid = task.title + task.module;
                         const isDone = taskStatus[uid];
                         const deadline = new Date(task.end);
@@ -398,6 +396,7 @@
             const [semester, setSemester] = useState(2);
             const [visibleUEs, setVisibleUEs] = useState({ 21: true, 22: true });
             const [events, setEvents] = useState([]);
+            const [allEvents, setAllEvents] = useState([]); // Store ALL events for full view
             const [announcements, setAnnouncements] = useState([]);
             const [profile, setProfile] = useState({ firstName: 'Étudiant', lastName: '', group: '', email: '', ine: '', adeUrl: DEFAULT_ADE });
             const [history, setHistory] = useState({ s1: { ue11: '', ue12: '' }, s3: { ue31: '', ue32: '' }, s4: { ue41: '', ue42: '' } });
@@ -426,7 +425,7 @@
                     while (!window.firebaseModules && attempts < 20) { await new Promise(r => setTimeout(r, 100)); attempts++; }
                     if (!window.firebaseModules) return fallbackToLocal();
 
-                    const { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, getFirestore, doc, onSnapshot, collection, query, orderBy } = window.firebaseModules;
+                    const { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, getFirestore, doc, onSnapshot, collection, query } = window.firebaseModules;
                     
                     try {
                         const app = initializeApp(JSON.parse(__firebase_config));
@@ -474,7 +473,7 @@
                 }
             }, [profile, s2Grades, history, taskStatus, user]);
 
-            // Agenda Fetch - Full Week
+            // Agenda Fetch - Full Logic
             useEffect(() => {
                 if(profile.adeUrl) {
                     const fetchSchedule = async () => {
@@ -483,14 +482,22 @@
                             const text = await res.text();
                             const parsed = parseICS(text);
                             
-                            // Get Monday of current week
+                            setAllEvents(parsed); // Store ALL events for full view
+
+                            // Get Monday of current week logic or next week if weekend
                             const d = new Date();
                             const day = d.getDay();
-                            const diff = d.getDate() - day + (day === 0 ? -6 : 1); 
-                            const monday = new Date(d.setDate(diff));
+                            
+                            // IF WEEKEND (Sat or Sun), show NEXT WEEK
+                            let mondayDiff;
+                            if (day === 0) mondayDiff = 1; // Sunday -> Next Monday (+1 day)
+                            else if (day === 6) mondayDiff = 2; // Saturday -> Next Monday (+2 days)
+                            else mondayDiff = 1 - day; // Weekday -> Previous/Current Monday
+
+                            const monday = new Date();
+                            monday.setDate(d.getDate() + mondayDiff);
                             monday.setHours(0,0,0,0);
                             
-                            // Get Next Sunday
                             const sunday = new Date(monday);
                             sunday.setDate(monday.getDate() + 7);
 
@@ -524,6 +531,20 @@
                 <div className="min-h-screen bg-black text-white pb-24 font-sans">
                     {selectedModule && <GradeEditorModal module={selectedModule} grades={s2Grades[selectedModule.id]} onClose={()=>setSelectedModule(null)} onSave={g=>setS2Grades({...s2Grades, [selectedModule.id]: g})} />}
 
+                    {/* FULL AGENDA VIEW (OVERLAY) */}
+                    {view === 'FULL_AGENDA' && (
+                        <div className="fixed inset-0 z-50 bg-bg overflow-y-auto animate-in slide-in-from-right">
+                            <div className="sticky top-0 bg-bg/95 backdrop-blur-md p-4 border-b border-border flex items-center justify-between z-10">
+                                <h2 className="text-xl font-bold flex items-center gap-2"><Icon name="calendar" /> Agenda Complet</h2>
+                                <button onClick={() => setView('AGENDA')} className="p-2 bg-card rounded-full border border-border text-subtext"><Icon name="x" size={20}/></button>
+                            </div>
+                            <div className="p-4 pb-10">
+                                {/* Show all future events */}
+                                <AgendaList events={allEvents.filter(e => e.start >= new Date()).slice(0, 50)} profile={profile} /> 
+                            </div>
+                        </div>
+                    )}
+
                     <header className="p-6 pt-12 flex justify-between items-center bg-gradient-to-b from-primary/10 to-transparent sticky top-0 z-40 backdrop-blur-md">
                         <div><div className="text-xs font-bold text-primary mb-1 uppercase">Espace Étudiant</div><h1 className="text-2xl font-bold">Bonjour {profile.firstName}</h1></div>
                         <div onClick={()=>setView('SETTINGS')} className="w-10 h-10 rounded-full bg-card border border-white/10 flex items-center justify-center font-bold text-sm cursor-pointer">{profile.firstName[0]}</div>
@@ -536,10 +557,9 @@
                             <div className="space-y-4 animate-in">
                                 <div className="grid grid-cols-2 gap-3">
                                     <WeatherWidget />
-                                    <UpcomingDeadline tasks={TASKS_DATA} taskStatus={taskStatus} />
+                                    <div onClick={()=>setView('NOTES')} className="glass p-4 rounded-2xl flex flex-col justify-center items-center text-center cursor-pointer active:scale-95 transition-transform"><Icon name="calculator" size={24} className="text-primary mb-2"/><div className="text-xs text-subtext uppercase font-bold">Moyenne S2</div><div className="text-3xl font-bold">{statsS2.global || '--'}</div></div>
                                 </div>
-                                <SemesterProgress />
-                                <div className="bg-card p-4 rounded-2xl border border-white/5"><h3 className="font-bold mb-3 flex items-center gap-2">Mon Planning (Semaine)</h3>
+                                <div className="bg-card p-4 rounded-2xl border border-white/5"><h3 className="font-bold mb-3 flex items-center gap-2">Prochains cours</h3>
                                 {events.length > 0 ? events.slice(0, 5).map((e, i) => (<div key={i} className="flex gap-4 mb-3 last:mb-0"><div className="text-xs font-bold text-subtext w-10 pt-1">{e.start.getHours()}h{e.start.getMinutes()||'00'}</div><div className="flex-1 bg-white/5 p-2 rounded-lg"><div className="font-bold text-sm">{e.summary}</div><div className="text-xs text-subtext">{e.location}</div></div></div>)) : <div className="text-center text-xs text-subtext py-4">Rien à l'horizon 🏖️</div>}
                                 </div>
                             </div>
@@ -567,14 +587,14 @@
 
                         {view === 'AGENDA' && (
                             <div className="space-y-6 animate-in">
-                                <div><h2 className="text-2xl font-bold mb-4">Planning Semaine</h2><AgendaList events={events} /></div>
+                                <div><h2 className="text-2xl font-bold mb-4">Planning Semaine</h2><AgendaList events={events} profile={profile} onExpand={() => setView('FULL_AGENDA')} /></div>
                                 <div><h2 className="text-2xl font-bold mb-4">QCM & Deadlines</h2><div className="bg-card p-4 rounded-2xl border border-border"><QCMList tasks={TASKS_DATA} taskStatus={taskStatus} onToggle={(id)=>{const nt={...taskStatus,[id]:!taskStatus[id]}; setTaskStatus(nt);}} /></div></div>
                             </div>
                         )}
 
                         {view === 'LIFE' && (
                             <div className="space-y-6 animate-in">
-                                <div><h2 className="text-xl font-bold mb-4">Services Campus</h2><div className="grid grid-cols-2 gap-3"><a href={LINKS.CROUS} target="_blank" className="bg-card p-4 rounded-2xl border border-border flex flex-col items-center justify-center text-center gap-2 active:scale-95 transition-transform"><Icon name="utensils" className="text-orange-500"/><span className="font-bold text-sm">Menu Crous</span></a><a href="https://www.tcl.fr/" target="_blank" className="bg-card p-4 rounded-2xl border border-border flex flex-col items-center justify-center text-center gap-2 active:scale-95 transition-transform"><Icon name="train" className="text-red-500"/><span className="font-bold text-sm">Info Trafic</span></a><a href={LINKS.MEDIA} target="_blank" className="bg-card p-4 rounded-2xl border border-border flex flex-col items-center justify-center text-center gap-2 active:scale-95 transition-transform"><Icon name="book-open" className="text-blue-500"/><span className="font-bold text-sm">Médiathèque</span></a><a href={LINKS.PISCINE} target="_blank" className="bg-card p-4 rounded-2xl border border-border flex flex-col items-center justify-center text-center gap-2 active:scale-95 transition-transform"><Icon name="droplets" className="text-cyan-500"/><span className="font-bold text-sm">Piscine</span></a></div></div>
+                                <div><h2 className="text-xl font-bold mb-4">Services Campus</h2><div className="grid grid-cols-2 gap-3"><a href={LINKS.CROUS} target="_blank" className="bg-card p-4 rounded-2xl border border-border flex flex-col items-center justify-center text-center gap-2 active:scale-95 transition-transform"><Icon name="utensils" className="text-orange-500"/><span className="font-bold text-sm">Menu Crous</span></a><a href="https://www.tcl.fr/" target="_blank" className="bg-card p-4 rounded-2xl border border-border flex flex-col items-center justify-center text-center gap-2 active:scale-95 transition-transform"><Icon name="train" className="text-red-500"/><span className="font-bold text-sm">Info Trafic</span></a></div></div>
                                 <div><h2 className="text-xl font-bold mb-4">Liens Utiles</h2><div className="grid grid-cols-1 gap-3">{USEFUL_LINKS.map((link, i) => (<a key={i} href={link.url} target="_blank" className="flex items-center gap-4 bg-card p-3 rounded-xl border border-white/5 active:scale-95 transition-transform"><div className={`w-10 h-10 rounded-full ${link.color} flex items-center justify-center text-white shadow-lg`}><Icon name={link.icon} size={20} /></div><span className="font-bold text-sm">{link.name}</span><Icon name="chevron-right" size={16} className="ml-auto text-subtext"/></a>))}</div></div>
                             </div>
                         )}
