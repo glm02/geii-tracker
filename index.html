@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>GEII OS v12</title>
+    <title>GEII OS v12.1</title>
     
     <!-- React & Dependencies -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
@@ -87,7 +87,6 @@
         const { useState, useEffect, useRef, useMemo } = React;
 
         // --- CONFIG & DATA ---
-        // Lien par défaut (IUT Lyon 1 GEII)
         const DEFAULT_ADE = "https://edt.univ-lyon1.fr/jsp/custom/modules/plannings/anonymous_cal.jsp?resources=13655&projectId=1&calType=ical&firstDate=2025-08-18&lastDate=2026-08-01";
 
         const LINKS = {
@@ -125,7 +124,6 @@
             { id: 'PF2', short: 'PORTF', label: 'Portfolio S2', coef21: 1.0, coef22: 1.0, cat: 'SAÉ' },
         ];
 
-        // Tâches (Liste complète)
         const TASKS_DATA = [
             { module: 'R2.09', title: 'QCM_TD1', end: '2026-02-13', type: 'QCM' },
             { module: 'R2.09', title: 'QCM_TD2', end: '2026-03-04', type: 'QCM' },
@@ -150,6 +148,14 @@
             { module: 'R2.10', title: 'QCM13', end: '2026-05-23', type: 'QCM' },
             { module: 'R2.10', title: 'QCM14', end: '2026-05-30', type: 'QCM' },
         ];
+        
+        const startDate = new Date('2026-02-02');
+        for(let i=0; i<10; i++) {
+            let d1 = new Date(startDate); d1.setDate(startDate.getDate() + (i*7));
+            let d2 = new Date(startDate); d2.setDate(startDate.getDate() + (i*7) + 3);
+            TASKS_DATA.push({ module: 'R2.04', title: `QCM Hebdo ${i+1}.1`, end: d1.toISOString().split('T')[0], type: 'MATHS' });
+            TASKS_DATA.push({ module: 'R2.04', title: `QCM Hebdo ${i+1}.2`, end: d2.toISOString().split('T')[0], type: 'MATHS' });
+        }
 
         // --- HELPERS ---
         const Icon = ({ name, size=20, className="" }) => {
@@ -175,26 +181,20 @@
             return mod ? mod.label : id;
         };
 
-        // PARSER ICAL ROBUSTE
         const parseICS = (icsData) => {
             const events = [];
             const lines = icsData.split(/\r\n|\n|\r/);
             let inEvent = false;
             let event = {};
-            
             const parseDate = (dateStr) => {
                 if (!dateStr) return null;
                 dateStr = dateStr.trim();
-                // Format YYYYMMDDTHHMMSSZ
-                const match = dateStr.match(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})/);
+                const match = dateStr.match(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})(Z)?/);
                 if (!match) return null;
-                
-                const [, y, m, d, h, min, s] = match;
-                // On crée la date en UTC car iCal est souvent en UTC
-                const date = new Date(Date.UTC(y, m-1, d, h, min, s));
-                return date;
+                const [, y, m, d, h, min, s, z] = match;
+                if (z) return new Date(Date.UTC(y, m-1, d, h, min, s));
+                else return new Date(y, m-1, d, h, min, s);
             };
-
             for (let line of lines) {
                 if (line.startsWith('BEGIN:VEVENT')) { inEvent = true; event = {}; } 
                 else if (line.startsWith('END:VEVENT')) { inEvent = false; if (event.start && event.summary) events.push(event); } 
@@ -301,25 +301,90 @@
         const AgendaList = ({ events, profile, onExpand }) => {
             const [weekOffset, setWeekOffset] = useState(0);
 
-            const getWeekRange = (offset) => {
+            // STATE DE CHARGEMENT ET MODE
+            const [localEvents, setLocalEvents] = useState([]);
+            const [isDemo, setIsDemo] = useState(false);
+            const [isLoading, setIsLoading] = useState(false);
+
+            // Récupérer les événements de la semaine
+            const getWeekEvents = async (offset) => {
+                setIsLoading(true);
+                
+                // Calculer les dates de la semaine demandée
                 const now = new Date();
-                const day = now.getDay(); 
-                // Pour toujours commencer au Lundi (1)
+                const day = now.getDay();
+                // Lundi de la semaine actuelle
                 const diff = now.getDate() - day + (day === 0 ? -6 : 1) + (offset * 7);
-                const monday = new Date(now.setDate(diff));
+                
+                const monday = new Date(now);
+                monday.setDate(diff);
                 monday.setHours(0,0,0,0);
+                
                 const sunday = new Date(monday);
-                sunday.setDate(monday.getDate() + 6);
-                sunday.setHours(23,59,59,999);
-                return { start: monday, end: sunday };
+                sunday.setDate(monday.getDate() + 7);
+
+                // Si les événements globaux sont chargés, filtrer
+                if (events && events.length > 0) {
+                    const filtered = events.filter(e => e.start >= monday && e.start < sunday);
+                    setLocalEvents(filtered.sort((a,b) => a.start - b.start));
+                    setIsDemo(false);
+                } else {
+                    // Sinon, générer des données de secours pour CETTE semaine
+                    generateFallback(monday);
+                    setIsDemo(true);
+                }
+                
+                setIsLoading(false);
+                return { start: monday }; // Pour affichage date
             };
 
-            const { start, end } = getWeekRange(weekOffset);
-            const weekEvents = events.filter(e => e.start >= start && e.start <= end);
-            const grouped = weekEvents.reduce((acc, event) => {
+            // Générateur de données de secours
+            const generateFallback = (mondayDate) => {
+                const demoData = [];
+                const courseTypes = [
+                    { summary: 'R2.06 Automatisme', location: 'Salle TP3', type: 'TP' },
+                    { summary: 'R2.07 Informatique', location: 'Salle I12', type: 'TD' },
+                    { summary: 'R2.01 Analyse', location: 'Amphi 2', type: 'CM' },
+                    { summary: 'Anglais', location: 'Labo Langues', type: 'TD' }
+                ];
+
+                for (let i = 0; i < 5; i++) { // Lun-Ven
+                    const d = new Date(mondayDate);
+                    d.setDate(mondayDate.getDate() + i);
+                    
+                    const c1 = courseTypes[i % 4];
+                    const start1 = new Date(d); start1.setHours(8 + (i%2), 0);
+                    const end1 = new Date(d); end1.setHours(10 + (i%2), 0);
+                    
+                    const c2 = courseTypes[(i+1) % 4];
+                    const start2 = new Date(d); start2.setHours(13 + (i%2), 30);
+                    const end2 = new Date(d); end2.setHours(15 + (i%2), 30);
+
+                    demoData.push({ ...c1, start: start1, end: end1 });
+                    demoData.push({ ...c2, start: start2, end: end2 });
+                }
+                setLocalEvents(demoData);
+            };
+
+            // Mettre à jour quand on change de semaine ou que les events globaux changent
+            useEffect(() => {
+                getWeekEvents(weekOffset);
+            }, [weekOffset, events]);
+
+            const weekStart = new Date();
+            const day = weekStart.getDay();
+            const diff = weekStart.getDate() - day + (day === 0 ? -6 : 1) + (weekOffset * 7);
+            weekStart.setDate(diff);
+
+            // Groupement par jour
+            const grouped = localEvents.reduce((acc, event) => {
                 const dateKey = event.start.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
-                if (!acc[dateKey]) acc[dateKey] = []; acc[dateKey].push(event); return acc;
+                if (!acc[dateKey]) acc[dateKey] = [];
+                acc[dateKey].push(event);
+                return acc;
             }, {});
+            
+            // Tri des clés (Jours)
             const sortedDates = Object.keys(grouped).sort((a,b) => grouped[a][0].start - grouped[b][0].start);
 
             const getCourseStyle = (summary) => {
@@ -334,11 +399,20 @@
                 <div className="space-y-4">
                     <div className="flex justify-between items-center fintech-card p-3 border border-white/5">
                         <button onClick={() => setWeekOffset(weekOffset - 1)} className="p-2 hover:bg-white/10 rounded-lg transition-colors"><Icon name="chevron-left" size={20}/></button>
-                        <div className="text-center"><div className="text-[10px] text-subtext uppercase font-bold tracking-wider">Semaine du</div><div className="text-sm font-bold text-white">{start.toLocaleDateString('fr-FR', {day: 'numeric', month: 'short'})}</div></div>
+                        <div className="text-center">
+                            <div className="text-[10px] text-subtext uppercase font-bold tracking-wider">Semaine du</div>
+                            <div className="text-sm font-bold text-white">{weekStart.toLocaleDateString('fr-FR', {day: 'numeric', month: 'short'})}</div>
+                        </div>
                         <button onClick={() => setWeekOffset(weekOffset + 1)} className="p-2 hover:bg-white/10 rounded-lg transition-colors"><Icon name="chevron-right" size={20}/></button>
                     </div>
+                    
+                    {isDemo && <div className="text-center text-xs text-warning bg-warning/10 p-2 rounded-lg border border-warning/20">Mode Démo : Données simulées (Erreur réseau/lien)</div>}
+
                     {onExpand && <div className="flex justify-end"><button onClick={onExpand} className="bg-white/5 border border-white/10 text-xs font-bold px-3 py-2 rounded-lg flex items-center gap-2 hover:bg-white/10 transition-colors uppercase tracking-wider text-subtext hover:text-white"><Icon name="maximize-2" size={12}/> Agrandir</button></div>}
-                    {sortedDates.length === 0 ? <div className="text-center py-12 text-subtext flex flex-col items-center gap-3 opacity-50"><Icon name="coffee" size={32}/><span className="text-sm font-medium">Semaine libre !</span></div> : sortedDates.map((date, index) => (
+                    
+                    {isLoading ? <div className="text-center py-10 text-subtext">Chargement...</div> : 
+                    sortedDates.length === 0 ? <div className="text-center py-12 text-subtext flex flex-col items-center gap-3 opacity-50"><Icon name="coffee" size={32}/><span className="text-sm font-medium">Semaine libre !</span></div> : 
+                    sortedDates.map((date, index) => (
                         <div key={index} className="animate-in slide-in-from-bottom-4 fade-in duration-500">
                             <h3 className="text-xs font-bold text-primary uppercase sticky top-0 bg-bg/95 backdrop-blur-xl py-3 z-10 flex items-center gap-2 border-b border-transparent"><div className="w-1.5 h-1.5 rounded-full bg-primary"></div> {date}</h3>
                             <div className="space-y-3 mt-1">
@@ -528,50 +602,43 @@
                 if(profile.adeUrl && !needsOnboarding) {
                     const fetchSchedule = async () => {
                         let text = "";
-                        try {
-                            const res = await fetch('https://corsproxy.io/?' + encodeURIComponent(profile.adeUrl));
-                            if (!res.ok) throw new Error("Primary proxy failed");
-                            text = await res.text();
-                        } catch(e) {
-                             console.warn("Primary proxy failed, trying backup...");
-                             try {
-                                const res = await fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(profile.adeUrl));
-                                if (!res.ok) throw new Error("Secondary proxy failed");
-                                text = await res.text();
-                             } catch (err) {
-                                 console.warn("All proxies failed, using Fallback demo data to ensure app functionality.");
-                                 // Fallback demo data to prevent empty state
-                                 const now = new Date();
-                                 text = `BEGIN:VCALENDAR
+                        let success = false;
+                        const proxies = [
+                            'https://corsproxy.io/?' + encodeURIComponent(profile.adeUrl),
+                            'https://api.allorigins.win/raw?url=' + encodeURIComponent(profile.adeUrl),
+                            'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(profile.adeUrl)
+                        ];
+
+                        for (const url of proxies) {
+                            try {
+                                const res = await fetch(url);
+                                if (res.ok) {
+                                    text = await res.text();
+                                    // Basic check to see if it looks like iCal
+                                    if (text.includes("BEGIN:VCALENDAR")) {
+                                        success = true;
+                                        break;
+                                    }
+                                }
+                            } catch(e) { console.warn("Proxy failed", url); }
+                        }
+
+                        if (!success) {
+                            // Fallback to Demo Data to ensure UI works
+                            const d = new Date();
+                            const y = d.getFullYear(); const m = (d.getMonth()+1).toString().padStart(2,'0'); const day = d.getDate().toString().padStart(2,'0');
+                            text = `BEGIN:VCALENDAR
 BEGIN:VEVENT
-DTSTART:${now.getFullYear()}02${now.getDate().toString().padStart(2,'0')}T080000
-DTEND:${now.getFullYear()}02${now.getDate().toString().padStart(2,'0')}T100000
+DTSTART:${y}${m}${day}T080000
+DTEND:${y}${m}${day}T100000
 SUMMARY:Cours de Secours (Connexion EDT échouée)
 LOCATION:Vérifiez votre lien
 END:VEVENT
 END:VCALENDAR`;
-                             }
                         }
                         
                         const parsed = parseICS(text);
                         setAllEvents(parsed.sort((a,b) => a.start - b.start));
-                        
-                        const d = new Date();
-                        const day = d.getDay();
-                        let mondayDiff;
-                        if (day === 0) mondayDiff = 1; 
-                        else if (day === 6) mondayDiff = 2; 
-                        else mondayDiff = 1 - day;
-
-                        const monday = new Date();
-                        monday.setDate(d.getDate() + mondayDiff);
-                        monday.setHours(0,0,0,0);
-                        
-                        const sunday = new Date(monday);
-                        sunday.setDate(monday.getDate() + 7);
-
-                        const weeklyEvents = parsed.filter(e => e.start >= monday && e.start < sunday).sort((a,b)=>a.start-b.start);
-                        setEvents(weeklyEvents);
                     };
                     fetchSchedule();
                 }
@@ -719,8 +786,7 @@ END:VCALENDAR`;
 
                         {view === 'LIFE' && (
                             <div className="space-y-8 animate-in">
-                                <div><h2 className="text-3xl font-bold mb-6 tracking-tight">Campus</h2><div className="grid grid-cols-2 gap-4"><CrousWidget /><TrafficWidget /></div><button onClick={()=>setShowMap(true)} className="mt-3 w-full bg-card p-3 rounded-xl border border-white/5 flex items-center justify-center gap-2 hover:bg-white/5"><Icon name="map" size={16}/> Voir Carte Campus</button></div>
-                                <CustomLinksWidget links={customLinks} onAdd={l=>setCustomLinks([...customLinks, l])} onDelete={id=>setCustomLinks(customLinks.filter(l=>l.id!==id))} />
+                                <div><h2 className="text-3xl font-bold mb-6 tracking-tight">Campus</h2><div className="grid grid-cols-2 gap-4"><CrousWidget /><TrafficWidget /></div></div>
                                 <div><h2 className="text-3xl font-bold mb-6 tracking-tight">Liens Utiles</h2><div className="grid grid-cols-1 gap-3">{USEFUL_LINKS.map((link, i) => (<a key={i} href={link.url} target="_blank" className="flex items-center gap-4 fintech-card p-4 border border-white/5 active:scale-98 transition-transform hover:bg-cardHover"><div className={`w-12 h-12 rounded-full ${link.color} flex items-center justify-center text-white shadow-lg`}><Icon name={link.icon} size={20} /></div><span className="font-bold text-base">{link.name}</span><Icon name="chevron-right" size={20} className="ml-auto text-subtext/50"/></a>))}</div></div>
                             </div>
                         )}
