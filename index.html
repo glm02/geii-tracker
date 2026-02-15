@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>GEII OS v11.2</title>
+    <title>GEII OS v12</title>
     
     <!-- React & Dependencies -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
@@ -15,19 +15,32 @@
     <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot, collection, query, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
-        // Configuration Firebase (Laisser vide pour mode Local/Demo sur GitHub)
+        // CONFIGURATION OFFICIELLE GE2IOS
         const firebaseConfig = {
-            // apiKey: "...",
+            apiKey: "AIzaSyCbl5_K5U0fi5kyNbD-1oP6JhR_KWGGYUc",
+            authDomain: "ge2ios.firebaseapp.com",
+            projectId: "ge2ios",
+            storageBucket: "ge2ios.firebasestorage.app",
+            messagingSenderId: "650563123643",
+            appId: "1:650563123643:web:b267bd6c4cf9b779842c9e",
+            measurementId: "G-2B74XE1844"
         };
 
-        if (Object.keys(firebaseConfig).length > 0) {
+        try {
             const app = initializeApp(firebaseConfig);
             const auth = getAuth(app);
             const db = getFirestore(app);
-            window.firebaseModules = { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, getFirestore, doc, setDoc, onSnapshot, collection, query, orderBy, app, auth, db };
+            // Exposition globale sécurisée pour l'app React
+            window.firebaseModules = { 
+                app, auth, db, 
+                signInAnonymously, onAuthStateChanged, 
+                doc, setDoc, onSnapshot, collection, query, orderBy 
+            };
+        } catch (error) {
+            console.error("Erreur init Firebase:", error);
         }
     </script>
 
@@ -37,16 +50,16 @@
             theme: {
                 extend: {
                     colors: {
-                        bg: '#000000', // True Black
-                        card: '#1C1C1E', // Apple/Revolut Dark Grey
+                        bg: '#000000', 
+                        card: '#1C1C1E', 
                         cardHover: '#2C2C2E',
-                        border: '#2C2C2E', // Subtle border
-                        primary: '#2962FF', // Electric Blue
-                        success: '#34C759', // iOS Green
-                        danger: '#FF3B30', // iOS Red
-                        warning: '#FFCC00', // iOS Yellow
+                        border: '#2C2C2E', 
+                        primary: '#2962FF', 
+                        success: '#34C759', 
+                        danger: '#FF3B30', 
+                        warning: '#FFCC00', 
                         text: '#FFFFFF',
-                        subtext: '#8E8E93', // Cool Grey
+                        subtext: '#8E8E93',
                     },
                     fontFamily: {
                         sans: ['-apple-system', 'BlinkMacSystemFont', 'San Francisco', 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
@@ -74,12 +87,13 @@
         const { useState, useEffect, useRef, useMemo } = React;
 
         // --- CONFIG & DATA ---
+        // Lien par défaut (IUT Lyon 1 GEII)
         const DEFAULT_ADE = "https://edt.univ-lyon1.fr/jsp/custom/modules/plannings/anonymous_cal.jsp?resources=13655&projectId=1&calType=ical&firstDate=2025-08-18&lastDate=2026-08-01";
 
         const LINKS = {
-            ADE: "https://edt.univ-lyon1.fr/direct/index.jsp?projectId=1&ShowPianoWeeks=true&resources=13655&displayConfName=_DirectPlanning_IUT-GEII&days=0,1,2,3,4&weeks=&from=edt",
-            MAIL: "https://mail.univ-lyon1.fr/owa/auth/logon.aspx?url=https%3a%2f%2fmail.univ-lyon1.fr%2fowa%2f&reason=0",
-            DOCS: "https://wwwgeii.univ-lyon1.fr/depot_certif/view_user_docs.php",
+            ADE: "https://edt.univ-lyon1.fr/direct/index.jsp",
+            MAIL: "https://mail.univ-lyon1.fr/owa",
+            DOCS: "https://wwwgeii.univ-lyon1.fr/depot_certif",
             MOODLE: "https://moodle.univ-lyon1.fr/",
             MIRE: "https://wwwgeii.univ-lyon1.fr/mire_geii.php",
             CROUS: "https://www.crous-lyon.fr/restaurant/resto-u-gratte-ciel/",
@@ -98,7 +112,7 @@
         const MODULES_CONFIG_S2 = [
             { id: 'R2.01', short: 'AN2', label: 'Analyse', coef21: 1.1, coef22: 0, cat: 'Fonda' },
             { id: 'R2.02', short: 'CC2', label: 'Culture Com', coef21: 1.1, coef22: 0, cat: 'Trans' },
-            { id: 'R2.03', short: 'VE2', label: 'Vie Entr.', coef21: 0.8, coef22: 0, cat: 'Trans' },
+            { id: 'R2.03', short: 'VE2', label: 'Vie Entreprise', coef21: 0.8, coef22: 0, cat: 'Trans' },
             { id: 'R2.04', short: 'OML2', label: 'Outils Maths', coef21: 2.6, coef22: 0, cat: 'Fonda' },
             { id: 'R2.05', short: 'PPP2', label: 'Projet Pro', coef21: 0.8, coef22: 0.2, cat: 'Trans' },
             { id: 'R2.06', short: 'AUTO2', label: 'Automatisme', coef21: 0, coef22: 2.6, cat: 'Tech' },
@@ -111,6 +125,7 @@
             { id: 'PF2', short: 'PORTF', label: 'Portfolio S2', coef21: 1.0, coef22: 1.0, cat: 'SAÉ' },
         ];
 
+        // Tâches (Liste complète)
         const TASKS_DATA = [
             { module: 'R2.09', title: 'QCM_TD1', end: '2026-02-13', type: 'QCM' },
             { module: 'R2.09', title: 'QCM_TD2', end: '2026-03-04', type: 'QCM' },
@@ -118,11 +133,24 @@
             { module: 'R2.09', title: 'QCM_TD4', end: '2026-03-13', type: 'QCM' },
             { module: 'R2.09', title: 'QCM_TD6', end: '2026-03-27', type: 'QCM' },
             { module: 'R2.09', title: 'QCM_TD8', end: '2026-04-24', type: 'QCM' },
+            { module: 'R2.09', title: 'QCM_TD9', end: '2026-04-30', type: 'QCM' },
+            { module: 'R2.09', title: 'QCM_TD11', end: '2026-05-08', type: 'QCM' },
+            { module: 'R2.09', title: 'QCM_TD12', end: '2026-05-21', type: 'QCM' },
             { module: 'R2.10', title: 'QCM1_Séance 1', end: '2026-02-06', type: 'QCM' },
             { module: 'R2.10', title: 'QCM2_Séance 2', end: '2026-02-13', type: 'QCM' },
             { module: 'R2.10', title: 'QCM3 - Devoir', end: '2026-02-27', type: 'DEVOIR' },
+            { module: 'R2.10', title: 'QCM4', end: '2026-03-06', type: 'QCM' },
+            { module: 'R2.10', title: 'QCM5', end: '2026-03-13', type: 'QCM' },
+            { module: 'R2.10', title: 'QCM6', end: '2026-03-20', type: 'QCM' },
+            { module: 'R2.10', title: 'QCM7', end: '2026-03-28', type: 'QCM' },
+            { module: 'R2.10', title: 'QCM8', end: '2026-04-04', type: 'QCM' },
+            { module: 'R2.10', title: 'QCM10', end: '2026-04-18', type: 'QCM' },
+            { module: 'R2.10', title: 'QCM11', end: '2026-05-09', type: 'QCM' },
+            { module: 'R2.10', title: 'QCM12', end: '2026-05-16', type: 'QCM' },
+            { module: 'R2.10', title: 'QCM13', end: '2026-05-23', type: 'QCM' },
+            { module: 'R2.10', title: 'QCM14', end: '2026-05-30', type: 'QCM' },
         ];
-        
+
         // --- HELPERS ---
         const Icon = ({ name, size=20, className="" }) => {
             useEffect(() => { lucide.createIcons(); }, [name]);
@@ -139,7 +167,7 @@
         const getGradeColor = (val) => {
             if (val === null || val === "—") return "text-subtext";
             const v = parseFloat(val);
-            if (v < 8) return "text-danger"; if (v < 10) return "text-warning"; if (v < 14) return "text-primary"; return "text-success";
+            if (v < 10) return "text-danger"; if (v < 12) return "text-warning"; if (v < 14) return "text-primary"; return "text-success";
         };
 
         const getModuleName = (id) => {
@@ -147,20 +175,26 @@
             return mod ? mod.label : id;
         };
 
+        // PARSER ICAL ROBUSTE
         const parseICS = (icsData) => {
             const events = [];
             const lines = icsData.split(/\r\n|\n|\r/);
             let inEvent = false;
             let event = {};
+            
             const parseDate = (dateStr) => {
                 if (!dateStr) return null;
                 dateStr = dateStr.trim();
-                const match = dateStr.match(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})(Z)?/);
+                // Format YYYYMMDDTHHMMSSZ
+                const match = dateStr.match(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})/);
                 if (!match) return null;
-                const [, y, m, d, h, min, s, z] = match;
-                if (z) return new Date(Date.UTC(y, m-1, d, h, min, s));
-                else return new Date(y, m-1, d, h, min, s);
+                
+                const [, y, m, d, h, min, s] = match;
+                // On crée la date en UTC car iCal est souvent en UTC
+                const date = new Date(Date.UTC(y, m-1, d, h, min, s));
+                return date;
             };
+
             for (let line of lines) {
                 if (line.startsWith('BEGIN:VEVENT')) { inEvent = true; event = {}; } 
                 else if (line.startsWith('END:VEVENT')) { inEvent = false; if (event.start && event.summary) events.push(event); } 
@@ -235,26 +269,6 @@
             </div>
         );
 
-        // --- NEW & MISSING COMPONENTS RESTORED ---
-        
-        const UESection = ({ title, ueKey, modules, gradesMap, absences, onModuleClick, onAbsenceUpdate, avg }) => (
-            <div className="space-y-3 mb-6"><div className="flex justify-between items-center bg-cardHover/50 p-3 rounded-xl border border-white/5"><h3 className="text-sm font-bold text-primary uppercase tracking-wider">{title}</h3><div className="text-white font-mono font-bold bg-black/40 px-2 py-1 rounded text-sm">{avg}</div></div>{modules.filter(m => m[ueKey] > 0).map(module => { const avg = calcAvg(gradesMap[module.id]); const absCount = absences[module.id] || 0; return (<div key={module.id} className="bg-[#1c1c1e] p-4 rounded-2xl flex justify-between items-center widget-hover cursor-pointer border border-white/5 active:scale-95 transition-transform" onClick={() => onModuleClick(module)}><div className="flex items-center gap-4"><div className="flex flex-col"><div className="font-bold text-white text-base">{module.label}</div><div className="text-xs text-subtext flex gap-2 items-center mt-0.5"><span className="opacity-70">{module.short}</span><span className="bg-white/10 px-1.5 rounded text-[9px] text-white/80">Coef {module[ueKey]}</span></div></div></div><div className="text-right flex flex-col items-end gap-1"><div className={`font-mono font-bold text-lg ${getGradeColor(avg)}`}>{avg || "—"}</div><div className="flex items-center gap-1 bg-black/50 rounded-lg p-0.5 border border-white/5" onClick={e=>e.stopPropagation()}><button onClick={()=>onAbsenceUpdate(module.id, -1)} className="w-6 h-6 flex items-center justify-center hover:bg-white/10 rounded text-subtext active:text-white active:bg-white/10"><Icon name="minus" size={10}/></button><span className={`text-[10px] font-bold w-4 text-center ${absCount>0?'text-danger':'text-subtext'}`}>{absCount}</span><button onClick={()=>onAbsenceUpdate(module.id, 1)} className="w-6 h-6 flex items-center justify-center hover:bg-white/10 rounded text-subtext active:text-white active:bg-white/10"><Icon name="plus" size={10}/></button></div></div></div>); })}</div>
-        );
-
-        const CustomLinksWidget = ({ links, onAdd, onDelete }) => {
-            const [name, setName] = useState('');
-            const [url, setUrl] = useState('');
-            const [showForm, setShowForm] = useState(false);
-            const handleAdd = () => { if(name && url) { onAdd({ id: Date.now(), name, url }); setName(''); setUrl(''); setShowForm(false); } };
-            return (
-                <div className="space-y-3"><div className="flex justify-between items-center"><h2 className="text-xl font-bold">Mes Liens</h2><button onClick={() => setShowForm(!showForm)} className="text-primary text-xs font-bold bg-primary/10 px-2 py-1 rounded-lg">{showForm ? 'Annuler' : '+ Ajouter'}</button></div>{showForm && (<div className="bg-card p-3 rounded-xl border border-white/10 space-y-2 animate-in slide-in-from-top-2"><input value={name} onChange={e=>setName(e.target.value)} placeholder="Nom du lien" className="w-full bg-black/30 p-2 rounded text-sm border border-white/5 outline-none"/><input value={url} onChange={e=>setUrl(e.target.value)} placeholder="https://..." className="w-full bg-black/30 p-2 rounded text-sm border border-white/5 outline-none"/><button onClick={handleAdd} className="w-full bg-primary text-white py-2 rounded text-xs font-bold">Sauvegarder</button></div>)}<div className="grid grid-cols-2 gap-3">{links.map(link => (<div key={link.id} className="relative group"><a href={link.url} target="_blank" className="bg-card p-3 rounded-xl border border-white/5 flex items-center gap-3 hover:bg-white/5 transition-colors"><div className="w-8 h-8 rounded-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center text-white"><Icon name="link" size={14}/></div><span className="font-bold text-sm truncate">{link.name}</span></a><button onClick={() => onDelete(link.id)} className="absolute -top-1 -right-1 bg-danger text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"><Icon name="x" size={10}/></button></div>))}</div></div>
-            );
-        };
-
-        const CampusMapModal = ({ onClose }) => (
-            <div className="fixed inset-0 z-[60] flex items-center justify-center glass-modal p-4 animate-in fade-in"><div className="bg-card w-full max-w-sm rounded-2xl border border-white/10 overflow-hidden"><div className="p-4 border-b border-white/10 flex justify-between items-center"><h3 className="font-bold text-lg">Carte Campus</h3><button onClick={onClose}><Icon name="x"/></button></div><div className="p-4 space-y-2">{[{name:'IUT Gratte-Ciel', url:'https://umap.openstreetmap.fr/fr/map/site-gratte-ciel_1120801?scaleControl=false&miniMap=false&scrollWheelZoom=true&zoomControl=true&editMode=disabled&moreControl=true&searchControl=false&tilelayersControl=false&embedControl=false&datalayersControl=true&o#18/45.767907/4.887741'}, {name:'Département GEII', url:'https://maps.app.goo.gl/1qzpvLeBQg92CLMi7'}, {name:'Resto U', url:'https://maps.app.goo.gl/MpLTYRFWBc37jb757'}].map((loc, i) => (<a key={i} href={loc.url} target="_blank" className="flex items-center justify-between p-3 bg-white/5 rounded-xl hover:bg-white/10"><span className="font-bold text-sm">{loc.name}</span><Icon name="map-pin" size={16} className="text-primary"/></a>))}</div></div></div>
-        );
-
         const TargetSimulator = () => {
             const [currentAvg, setCurrentAvg] = useState('');
             const [target, setTarget] = useState('');
@@ -270,15 +284,33 @@
             );
         };
 
+        const UESection = ({ title, ueKey, modules, gradesMap, absences, onModuleClick, onAbsenceUpdate, avg }) => (
+            <div className="space-y-3 mb-6"><div className="flex justify-between items-center bg-cardHover/50 p-3 rounded-xl border border-white/5"><h3 className="text-sm font-bold text-primary uppercase tracking-wider">{title}</h3><div className="text-white font-mono font-bold bg-black/40 px-2 py-1 rounded text-sm">{avg}</div></div>{modules.filter(m => m[ueKey] > 0).map(module => { const avg = calcAvg(gradesMap[module.id]); const absCount = absences[module.id] || 0; return (<div key={module.id} className="bg-[#1c1c1e] p-4 rounded-2xl flex justify-between items-center widget-hover cursor-pointer border border-white/5 active:scale-95 transition-transform" onClick={() => onModuleClick(module)}><div className="flex items-center gap-4"><div className="flex flex-col"><div className="font-bold text-white text-base">{module.label}</div><div className="text-xs text-subtext flex gap-2 items-center mt-0.5"><span className="opacity-70">{module.short}</span><span className="bg-white/10 px-1.5 rounded text-[9px] text-white/80">Coef {module[ueKey]}</span></div></div></div><div className="text-right flex flex-col items-end gap-1"><div className={`font-mono font-bold text-lg ${getGradeColor(avg)}`}>{avg || "—"}</div><div className="flex items-center gap-1 bg-black/50 rounded-lg p-0.5 border border-white/5" onClick={e=>e.stopPropagation()}><button onClick={()=>onAbsenceUpdate(module.id, -1)} className="w-6 h-6 flex items-center justify-center hover:bg-white/10 rounded text-subtext active:text-white active:bg-white/10"><Icon name="minus" size={10}/></button><span className={`text-[10px] font-bold w-4 text-center ${absCount>0?'text-danger':'text-subtext'}`}>{absCount}</span><button onClick={()=>onAbsenceUpdate(module.id, 1)} className="w-6 h-6 flex items-center justify-center hover:bg-white/10 rounded text-subtext active:text-white active:bg-white/10"><Icon name="plus" size={10}/></button></div></div></div>); })}</div>
+        );
+
+        const CustomLinksWidget = ({ links, onAdd, onDelete }) => {
+            const [name, setName] = useState('');
+            const [url, setUrl] = useState('');
+            const [showForm, setShowForm] = useState(false);
+            const handleAdd = () => { if(name && url) { onAdd({ id: Date.now(), name, url }); setName(''); setUrl(''); setShowForm(false); } };
+            return (
+                <div className="space-y-3"><div className="flex justify-between items-center"><h2 className="text-xl font-bold">Mes Liens</h2><button onClick={() => setShowForm(!showForm)} className="text-primary text-xs font-bold bg-primary/10 px-2 py-1 rounded-lg">{showForm ? 'Annuler' : '+ Ajouter'}</button></div>{showForm && (<div className="bg-card p-3 rounded-xl border border-white/10 space-y-2 animate-in slide-in-from-top-2"><input value={name} onChange={e=>setName(e.target.value)} placeholder="Nom du lien" className="w-full bg-black/30 p-2 rounded text-sm border border-white/5 outline-none"/><input value={url} onChange={e=>setUrl(e.target.value)} placeholder="https://..." className="w-full bg-black/30 p-2 rounded text-sm border border-white/5 outline-none"/><button onClick={handleAdd} className="w-full bg-primary text-white py-2 rounded text-xs font-bold">Sauvegarder</button></div>)}<div className="grid grid-cols-2 gap-3">{links.map(link => (<div key={link.id} className="relative group"><a href={link.url} target="_blank" className="bg-card p-3 rounded-xl border border-white/5 flex items-center gap-3 hover:bg-white/5 transition-colors"><div className="w-8 h-8 rounded-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center text-white"><Icon name="link" size={14}/></div><span className="font-bold text-sm truncate">{link.name}</span></a><button onClick={() => onDelete(link.id)} className="absolute -top-1 -right-1 bg-danger text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"><Icon name="x" size={10}/></button></div>))}</div></div>
+            );
+        };
+
         const AgendaList = ({ events, profile, onExpand }) => {
             const [weekOffset, setWeekOffset] = useState(0);
 
             const getWeekRange = (offset) => {
                 const now = new Date();
                 const day = now.getDay(); 
+                // Pour toujours commencer au Lundi (1)
                 const diff = now.getDate() - day + (day === 0 ? -6 : 1) + (offset * 7);
-                const monday = new Date(now.setDate(diff)); monday.setHours(0,0,0,0);
-                const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6); sunday.setHours(23,59,59,999);
+                const monday = new Date(now.setDate(diff));
+                monday.setHours(0,0,0,0);
+                const sunday = new Date(monday);
+                sunday.setDate(monday.getDate() + 6);
+                sunday.setHours(23,59,59,999);
                 return { start: monday, end: sunday };
             };
 
@@ -295,7 +327,6 @@
                 if (s.includes('ds') || s.includes('exam')) return { type: 'EXAMEN', color: 'border-l-danger bg-danger/5', badge: 'bg-danger/10 text-danger border border-danger/20' };
                 if (s.includes('amphi') || s.includes('cm')) return { type: 'CM', color: 'border-l-purple-500 bg-purple-500/5', badge: 'bg-purple-500/10 text-purple-400 border border-purple-500/20' };
                 if (s.includes('tp')) return { type: 'TP', color: 'border-l-blue-500 bg-blue-500/5', badge: 'bg-blue-500/10 text-blue-400 border border-blue-500/20' };
-                if (s.includes('td')) return { type: 'TD', color: 'border-l-green-500 bg-green-500/5', badge: 'bg-green-500/10 text-green-400 border border-green-500/20' };
                 return { type: 'Cours', color: 'border-l-white/20 bg-white/5', badge: 'bg-white/10 text-subtext border border-white/10' };
             };
 
@@ -492,35 +523,55 @@
                 }
             }, [profile, s2Grades, history, taskStatus, quickNote, customLinks, absences, user]);
 
-            // Agenda Fetch - Full Week
+            // Agenda Fetch - Full Week + Proxy Rotation + Fallback
             useEffect(() => {
                 if(profile.adeUrl && !needsOnboarding) {
                     const fetchSchedule = async () => {
+                        let text = "";
                         try {
-                            let res;
-                            try { res = await fetch('https://corsproxy.io/?' + encodeURIComponent(profile.adeUrl)); }
-                            catch(e) { res = await fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(profile.adeUrl)); }
-                            const text = await res.text();
-                            const parsed = parseICS(text);
-                            setAllEvents(parsed.sort((a,b) => a.start - b.start));
-                            
-                            const d = new Date();
-                            const day = d.getDay();
-                            let mondayDiff;
-                            if (day === 0) mondayDiff = 1; 
-                            else if (day === 6) mondayDiff = 2; 
-                            else mondayDiff = 1 - day;
+                            const res = await fetch('https://corsproxy.io/?' + encodeURIComponent(profile.adeUrl));
+                            if (!res.ok) throw new Error("Primary proxy failed");
+                            text = await res.text();
+                        } catch(e) {
+                             console.warn("Primary proxy failed, trying backup...");
+                             try {
+                                const res = await fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(profile.adeUrl));
+                                if (!res.ok) throw new Error("Secondary proxy failed");
+                                text = await res.text();
+                             } catch (err) {
+                                 console.warn("All proxies failed, using Fallback demo data to ensure app functionality.");
+                                 // Fallback demo data to prevent empty state
+                                 const now = new Date();
+                                 text = `BEGIN:VCALENDAR
+BEGIN:VEVENT
+DTSTART:${now.getFullYear()}02${now.getDate().toString().padStart(2,'0')}T080000
+DTEND:${now.getFullYear()}02${now.getDate().toString().padStart(2,'0')}T100000
+SUMMARY:Cours de Secours (Connexion EDT échouée)
+LOCATION:Vérifiez votre lien
+END:VEVENT
+END:VCALENDAR`;
+                             }
+                        }
+                        
+                        const parsed = parseICS(text);
+                        setAllEvents(parsed.sort((a,b) => a.start - b.start));
+                        
+                        const d = new Date();
+                        const day = d.getDay();
+                        let mondayDiff;
+                        if (day === 0) mondayDiff = 1; 
+                        else if (day === 6) mondayDiff = 2; 
+                        else mondayDiff = 1 - day;
 
-                            const monday = new Date();
-                            monday.setDate(d.getDate() + mondayDiff);
-                            monday.setHours(0,0,0,0);
-                            
-                            const sunday = new Date(monday);
-                            sunday.setDate(monday.getDate() + 7);
+                        const monday = new Date();
+                        monday.setDate(d.getDate() + mondayDiff);
+                        monday.setHours(0,0,0,0);
+                        
+                        const sunday = new Date(monday);
+                        sunday.setDate(monday.getDate() + 7);
 
-                            const weeklyEvents = parsed.filter(e => e.start >= monday && e.start < sunday).sort((a,b)=>a.start-b.start);
-                            setEvents(weeklyEvents);
-                        } catch(e) { console.log("EDT Error"); }
+                        const weeklyEvents = parsed.filter(e => e.start >= monday && e.start < sunday).sort((a,b)=>a.start-b.start);
+                        setEvents(weeklyEvents);
                     };
                     fetchSchedule();
                 }
@@ -605,8 +656,7 @@
                             </div>
                         </div>
                     )}
-                    {showMap && <CampusMapModal onClose={()=>setShowMap(false)} />}
-
+                    
                     <header className="p-6 pt-12 flex justify-between items-center bg-gradient-to-b from-primary/10 to-transparent sticky top-0 z-40 backdrop-blur-md">
                         <div><div className="text-xs font-bold text-primary mb-1 uppercase tracking-wider">Espace Étudiant</div><h1 className="text-3xl font-bold tracking-tight">Bonjour {profile.firstName}</h1></div>
                         <div onClick={()=>setView('SETTINGS')} className="w-10 h-10 rounded-full bg-card border border-white/10 flex items-center justify-center font-bold text-sm cursor-pointer hover:border-white/30 transition-colors">{profile.firstName[0]}</div>
