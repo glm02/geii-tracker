@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>GEII OS v8.2.2</title>
+    <title>GEII OS v8.4</title>
     
     <!-- React & Dependencies -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
@@ -71,8 +71,7 @@
             MOODLE: "https://moodle.univ-lyon1.fr/",
             MIRE: "https://wwwgeii.univ-lyon1.fr/mire_geii.php",
             CROUS: "https://www.crous-lyon.fr/restaurant/resto-u-gratte-ciel/",
-            MEDIA: "https://mediatheques.villeurbanne.fr/",
-            PISCINE: "https://www.villeurbanne.fr/mon-quotidien/sport/piscines/centre-nautique-etienne-gagnaire"
+            MEDIA: "https://mediatheques.villeurbanne.fr/"
         };
 
         const USEFUL_LINKS = [
@@ -133,17 +132,16 @@
         }
 
         // --- HELPERS ---
-        const Icon = ({ name, size = 20, className = "" }) => {
+        const Icon = ({ name, size=20, className="" }) => {
             useEffect(() => { lucide.createIcons(); }, [name]);
             return <i data-lucide={name} width={size} height={size} className={className}></i>;
         };
 
-        // Fonction renommée pour correspondre à l'appel dans App
         const calcAvg = (grades) => {
             if (!grades || grades.length === 0) return null;
-            let totalPoints = 0, totalCoef = 0;
-            grades.forEach(g => { totalPoints += parseFloat(g.value) * parseFloat(g.coef); totalCoef += parseFloat(g.coef); });
-            return totalCoef === 0 ? 0 : (totalPoints / totalCoef).toFixed(2);
+            let p = 0, c = 0;
+            grades.forEach(g => { p += parseFloat(g.value) * parseFloat(g.coef); c += parseFloat(g.coef); });
+            return c === 0 ? 0 : (p / c).toFixed(2);
         };
 
         const getGradeColor = (val) => {
@@ -157,25 +155,27 @@
             return mod ? mod.label : id;
         };
 
+        // --- PARSER ICAL CORRIGÉ ---
         const parseICS = (icsData) => {
             const events = [];
             const lines = icsData.split(/\r\n|\n|\r/);
             let inEvent = false;
             let event = {};
+            
             const parseDate = (dateStr) => {
                 if (!dateStr) return null;
                 dateStr = dateStr.trim();
-                const year = parseInt(dateStr.substring(0, 4));
-                const month = parseInt(dateStr.substring(4, 6)) - 1;
-                const day = parseInt(dateStr.substring(6, 8));
-                let hour = 0, minute = 0;
-                if (dateStr.includes('T')) {
-                    const timePart = dateStr.split('T')[1];
-                    hour = parseInt(timePart.substring(0, 2));
-                    minute = parseInt(timePart.substring(2, 4));
+                const match = dateStr.match(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})(Z)?/);
+                if (!match) return null;
+                const [, y, m, d, h, min, s, z] = match;
+                
+                if (z) {
+                    return new Date(Date.UTC(y, m-1, d, h, min, s));
+                } else {
+                    return new Date(y, m-1, d, h, min, s);
                 }
-                return new Date(year, month, day, hour, minute);
             };
+
             for (let line of lines) {
                 if (line.startsWith('BEGIN:VEVENT')) { inEvent = true; event = {}; } 
                 else if (line.startsWith('END:VEVENT')) { inEvent = false; if (event.start && event.summary) events.push(event); } 
@@ -262,14 +262,14 @@
         );
 
         const AgendaList = ({ events }) => {
+            if (events.length === 0) return <div className="text-center py-10 text-subtext">Aucun cours trouvé.</div>;
+
             const grouped = events.reduce((acc, event) => {
                 const dateKey = event.start.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
                 if (!acc[dateKey]) acc[dateKey] = [];
                 acc[dateKey].push(event);
                 return acc;
             }, {});
-
-            if (Object.keys(grouped).length === 0) return <div className="text-center py-10 text-subtext">Aucun cours à venir</div>;
 
             return (
                 <div className="space-y-6">
@@ -345,6 +345,51 @@
             );
         };
 
+        const SemesterProgress = () => {
+            const start = new Date('2026-01-05').getTime();
+            const end = new Date('2026-06-30').getTime();
+            const now = new Date().getTime();
+            const progress = Math.min(100, Math.max(0, ((now - start) / (end - start)) * 100));
+            
+            return (
+                <div className="bg-card p-4 rounded-2xl border border-white/5">
+                    <div className="flex justify-between items-end mb-2">
+                        <span className="text-xs text-subtext font-bold uppercase">Semestre 2</span>
+                        <span className="text-xs font-mono font-bold text-primary">{Math.round(progress)}%</span>
+                    </div>
+                    <div className="w-full bg-white/10 rounded-full h-2">
+                        <div className="bg-primary h-2 rounded-full transition-all duration-1000" style={{width: `${progress}%`}}></div>
+                    </div>
+                </div>
+            );
+        };
+
+        const UpcomingDeadline = ({ tasks, taskStatus }) => {
+            const now = new Date();
+            const upcoming = tasks
+                .filter(t => !taskStatus[t.title+t.module])
+                .map(t => ({...t, diff: new Date(t.end) - now}))
+                .filter(t => t.diff > 0)
+                .sort((a,b) => a.diff - b.diff)[0];
+
+            if (!upcoming) return <div className="glass p-4 rounded-2xl flex items-center justify-center text-xs text-subtext">Aucune deadline proche</div>;
+
+            const days = Math.ceil(upcoming.diff / (1000 * 60 * 60 * 24));
+            
+            return (
+                <div className="glass p-4 rounded-2xl flex flex-col justify-between border-l-4 border-l-warning">
+                    <div className="flex justify-between items-start">
+                        <span className="text-xs font-bold text-warning uppercase">Prochain Rendu</span>
+                        <span className="text-xs bg-warning/10 text-warning px-2 py-0.5 rounded font-bold">J-{days}</span>
+                    </div>
+                    <div>
+                        <div className="font-bold text-lg truncate">{upcoming.title}</div>
+                        <div className="text-xs text-subtext">{upcoming.module}</div>
+                    </div>
+                </div>
+            );
+        };
+
         // --- MAIN APP ---
         const App = () => {
             const [view, setView] = useState('HOME');
@@ -380,7 +425,7 @@
                     while (!window.firebaseModules && attempts < 20) { await new Promise(r => setTimeout(r, 100)); attempts++; }
                     if (!window.firebaseModules) return fallbackToLocal();
 
-                    const { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, getFirestore, doc, onSnapshot, collection, query } = window.firebaseModules;
+                    const { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, getFirestore, doc, onSnapshot, collection, query, orderBy } = window.firebaseModules;
                     
                     try {
                         const app = initializeApp(JSON.parse(__firebase_config));
@@ -428,13 +473,31 @@
                 }
             }, [profile, s2Grades, history, taskStatus, user]);
 
-            // Agenda Fetch
+            // Agenda Fetch - Full Week
             useEffect(() => {
                 if(profile.adeUrl) {
-                    setEvents([
-                        { summary: 'Automatisme', location: 'TP3', start: new Date(new Date().setHours(8,0)), end: new Date(new Date().setHours(10,0)) },
-                        { summary: 'Informatique', location: 'I12', start: new Date(new Date().setHours(10,15)), end: new Date(new Date().setHours(12,15)) }
-                    ]);
+                    const fetchSchedule = async () => {
+                        try {
+                            const res = await fetch('https://corsproxy.io/?' + encodeURIComponent(profile.adeUrl));
+                            const text = await res.text();
+                            const parsed = parseICS(text);
+                            
+                            // Get Monday of current week
+                            const d = new Date();
+                            const day = d.getDay();
+                            const diff = d.getDate() - day + (day === 0 ? -6 : 1); 
+                            const monday = new Date(d.setDate(diff));
+                            monday.setHours(0,0,0,0);
+                            
+                            // Get Next Sunday
+                            const sunday = new Date(monday);
+                            sunday.setDate(monday.getDate() + 7);
+
+                            const weeklyEvents = parsed.filter(e => e.start >= monday && e.start < sunday).sort((a,b)=>a.start-b.start);
+                            setEvents(weeklyEvents);
+                        } catch(e) { console.log("EDT Error"); }
+                    };
+                    fetchSchedule();
                 }
             }, [profile.adeUrl]);
 
@@ -472,9 +535,12 @@
                             <div className="space-y-4 animate-in">
                                 <div className="grid grid-cols-2 gap-3">
                                     <WeatherWidget />
-                                    <div onClick={()=>setView('NOTES')} className="glass p-4 rounded-2xl flex flex-col justify-center items-center text-center cursor-pointer active:scale-95 transition-transform"><Icon name="calculator" size={24} className="text-primary mb-2"/><div className="text-xs text-subtext uppercase font-bold">Moyenne S2</div><div className="text-3xl font-bold">{statsS2.global || '--'}</div></div>
+                                    <UpcomingDeadline tasks={TASKS_DATA} taskStatus={taskStatus} />
                                 </div>
-                                <div className="bg-card p-4 rounded-2xl border border-white/5"><h3 className="font-bold mb-3 flex items-center gap-2">Prochains cours</h3>{events.map((e, i) => (<div key={i} className="flex gap-4 mb-3 last:mb-0"><div className="text-xs font-bold text-subtext w-10 pt-1">{e.start.getHours()}h{e.start.getMinutes()||'00'}</div><div className="flex-1 bg-white/5 p-2 rounded-lg"><div className="font-bold text-sm">{e.summary}</div><div className="text-xs text-subtext">{e.location}</div></div></div>))}</div>
+                                <SemesterProgress />
+                                <div className="bg-card p-4 rounded-2xl border border-white/5"><h3 className="font-bold mb-3 flex items-center gap-2">Mon Planning (Semaine)</h3>
+                                {events.length > 0 ? events.slice(0, 5).map((e, i) => (<div key={i} className="flex gap-4 mb-3 last:mb-0"><div className="text-xs font-bold text-subtext w-10 pt-1">{e.start.getHours()}h{e.start.getMinutes()||'00'}</div><div className="flex-1 bg-white/5 p-2 rounded-lg"><div className="font-bold text-sm">{e.summary}</div><div className="text-xs text-subtext">{e.location}</div></div></div>)) : <div className="text-center text-xs text-subtext py-4">Rien à l'horizon 🏖️</div>}
+                                </div>
                             </div>
                         )}
 
@@ -500,7 +566,7 @@
 
                         {view === 'AGENDA' && (
                             <div className="space-y-6 animate-in">
-                                <div><h2 className="text-2xl font-bold mb-4">Planning</h2><AgendaList events={events} /></div>
+                                <div><h2 className="text-2xl font-bold mb-4">Planning Semaine</h2><AgendaList events={events} /></div>
                                 <div><h2 className="text-2xl font-bold mb-4">QCM & Deadlines</h2><div className="bg-card p-4 rounded-2xl border border-border"><QCMList tasks={TASKS_DATA} taskStatus={taskStatus} onToggle={(id)=>{const nt={...taskStatus,[id]:!taskStatus[id]}; setTaskStatus(nt);}} /></div></div>
                             </div>
                         )}
