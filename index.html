@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>GEII OS v13.0 - Bulletproof</title>
+    <title>GEII OS v13.1 - Agenda Restore</title>
     
     <!-- React & Dependencies -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
@@ -28,7 +28,7 @@
                 const app = initializeApp(firebaseConfig);
                 const auth = getAuth(app);
                 const db = getFirestore(app);
-                window.firebaseModules = { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, getFirestore, doc, setDoc, onSnapshot, collection, query, orderBy, app, auth, db };
+                window.firebaseModules = { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, signOut, getFirestore, doc, setDoc, onSnapshot, collection, query, orderBy, app, auth, db };
             } catch(e) { console.warn("Firebase config error", e); }
         }
     </script>
@@ -39,20 +39,20 @@
             theme: {
                 extend: {
                     colors: {
-                        bg: '#050505', 
-                        card: '#121212', 
-                        cardHover: '#1E1E1E',
-                        border: '#27272a', 
-                        primary: '#3b82f6', 
-                        success: '#10b981', 
-                        danger: '#ef4444', 
-                        warning: '#f59e0b', 
+                        bg: '#000000', 
+                        card: '#1C1C1E', 
+                        cardHover: '#2C2C2E',
+                        border: '#2C2C2E', 
+                        primary: '#2962FF', 
+                        success: '#34C759', 
+                        danger: '#FF3B30', 
+                        warning: '#FFCC00', 
                         text: '#FFFFFF',
-                        subtext: '#a1a1aa',
+                        subtext: '#8E8E93',
                     },
                     fontFamily: {
-                        sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
-                        mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
+                        sans: ['-apple-system', 'BlinkMacSystemFont', 'San Francisco', 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
+                        mono: ['SF Mono', 'Menlo', 'Monaco', 'Courier New', 'monospace'],
                     },
                     animation: {
                         'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
@@ -62,8 +62,8 @@
         }
     </script>
     <style>
-        body { background-color: #050505; color: #fff; -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent; }
-        .glass { background: rgba(30, 30, 30, 0.4); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08); }
+        body { background-color: #000; color: #fff; -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent; }
+        .fintech-card { background-color: #1C1C1E; border-radius: 1.5rem; }
         .glass-modal { background: rgba(0, 0, 0, 0.92); backdrop-filter: blur(8px); }
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
@@ -78,9 +78,10 @@
     <script type="text/babel">
         const { useState, useEffect, useRef, useMemo } = React;
 
-        // --- CONFIG ---
+        // --- CONFIG & DATA ---
+        // Lien par défaut (IUT Lyon 1 GEII)
         const DEFAULT_ADE = "https://edt.univ-lyon1.fr/jsp/custom/modules/plannings/anonymous_cal.jsp?resources=13655&projectId=1&calType=ical&firstDate=2025-08-18&lastDate=2026-08-01";
-        
+
         const LINKS = {
             ADE: "https://edt.univ-lyon1.fr/direct/index.jsp",
             MAIL: "https://mail.univ-lyon1.fr/owa",
@@ -116,6 +117,7 @@
             { id: 'PF2', short: 'PORTF', label: 'Portfolio S2', coef21: 1.0, coef22: 1.0, cat: 'SAÉ' },
         ];
 
+        // Tâches
         const TASKS_DATA = [
             { module: 'R2.09', title: 'QCM_TD1', end: '2026-02-13', type: 'QCM' },
             { module: 'R2.09', title: 'QCM_TD2', end: '2026-03-04', type: 'QCM' },
@@ -173,7 +175,7 @@
             return mod ? mod.label : id;
         };
 
-        // --- PARSER ICAL ROBUSTE ---
+        // --- PARSER ICAL ---
         const parseICS = (icsData) => {
             const events = [];
             const lines = icsData.split(/\r\n|\n|\r/);
@@ -185,10 +187,8 @@
                 const match = dateStr.match(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})(Z)?/);
                 if (!match) return null;
                 const [, y, m, d, h, min, s, z] = match;
-                // Force le fuseau horaire Europe/Paris si Z présent ou non, pour simplifier la démo
-                // Dans une vraie app, utiliser une lib comme date-fns-tz
-                const date = new Date(Date.UTC(y, m-1, d, h, min, s));
-                return date;
+                if (z) return new Date(Date.UTC(y, m-1, d, h, min, s));
+                else return new Date(y, m-1, d, h, min, s);
             };
             for (let line of lines) {
                 if (line.startsWith('BEGIN:VEVENT')) { inEvent = true; event = {}; } 
@@ -206,7 +206,7 @@
         // --- COMPONENTS ---
 
         const BottomNav = ({ active, setView }) => (
-            <div className="fixed bottom-0 w-full bg-[#121212]/95 backdrop-blur-xl border-t border-white/5 pb-safe pt-2 px-6 flex justify-between z-50">
+            <div className="fixed bottom-0 w-full bg-[#1C1C1E]/95 backdrop-blur-xl border-t border-white/5 pb-safe pt-2 px-6 flex justify-between z-50">
                 {[{ id: 'HOME', icon: 'layout-grid', label: 'Accueil' }, { id: 'NOTES', icon: 'graduation-cap', label: 'Notes' }, { id: 'AGENDA', icon: 'calendar', label: 'Agenda' }, { id: 'LIFE', icon: 'coffee', label: 'Vie Étud.' }, { id: 'SETTINGS', icon: 'user', label: 'Compte' }].map(item => (
                     <button key={item.id} onClick={() => setView(item.id)} className={`flex flex-col items-center p-2 transition-all duration-200 active:scale-90 ${active === item.id ? 'text-primary' : 'text-subtext hover:text-white'}`}>
                         <Icon name={item.icon} size={22} className={`mb-1 ${active === item.id ? 'stroke-[2.5px]' : 'stroke-[1.5px]'}`}/>
@@ -296,23 +296,36 @@
         const AgendaList = ({ events, profile, onExpand }) => {
             const [weekOffset, setWeekOffset] = useState(0);
 
-            // LOGIQUE ROBUSTE DE RÉCUPÉRATION DE SEMAINE
+            // LOGIQUE DE SEMAINE FIABILISÉE
             const getWeekRange = (offset) => {
                 const now = new Date();
-                const day = now.getDay(); 
-                // Si Dimanche (0), on recule de 6 jours pour avoir le Lundi précédent. Sinon 1 - day.
+                const day = now.getDay();
+                
+                // Pour que la semaine commence LUNDI (pas Dimanche)
                 const diff = now.getDate() - day + (day === 0 ? -6 : 1) + (offset * 7);
-                const monday = new Date(now.setDate(diff)); monday.setHours(0,0,0,0);
-                const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6); sunday.setHours(23,59,59,999);
+                
+                const monday = new Date(now.setDate(diff));
+                monday.setHours(0,0,0,0);
+                
+                const sunday = new Date(monday);
+                sunday.setDate(monday.getDate() + 6);
+                sunday.setHours(23,59,59,999);
+                
                 return { start: monday, end: sunday };
             };
 
             const { start, end } = getWeekRange(weekOffset);
+            
+            // Filter events for the selected week range
             const weekEvents = events.filter(e => e.start >= start && e.start <= end);
+
             const grouped = weekEvents.reduce((acc, event) => {
                 const dateKey = event.start.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
-                if (!acc[dateKey]) acc[dateKey] = []; acc[dateKey].push(event); return acc;
+                if (!acc[dateKey]) acc[dateKey] = [];
+                acc[dateKey].push(event);
+                return acc;
             }, {});
+
             const sortedDates = Object.keys(grouped).sort((a,b) => grouped[a][0].start - grouped[b][0].start);
 
             const getCourseStyle = (summary) => {
@@ -430,14 +443,12 @@
             const [profile, setProfile] = useState({ firstName: 'Étudiant', lastName: '', group: '', email: '', ine: '', adeUrl: DEFAULT_ADE });
             const [history, setHistory] = useState({ s1: { ue11: '', ue12: '' }, s3: { ue31: '', ue32: '' }, s4: { ue41: '', ue42: '' } });
             const [s2Grades, setS2Grades] = useState({});
-            const [absences, setAbsences] = useState({});
             const [taskStatus, setTaskStatus] = useState({});
             const [quickNote, setQuickNote] = useState('');
             const [selectedModule, setSelectedModule] = useState(null);
             const [customLinks, setCustomLinks] = useState([]);
-            const [showMap, setShowMap] = useState(false);
             const [needsOnboarding, setNeedsOnboarding] = useState(true);
-            const [isDemo, setIsDemo] = useState(false); // État pour l'indicateur démo agenda
+            const [isDemo, setIsDemo] = useState(false);
 
             const dbRef = useRef(null);
             const appIdRef = useRef(typeof __app_id !== 'undefined' ? __app_id : 'default-fintech-app');
@@ -446,14 +457,13 @@
             useEffect(() => {
                 const init = async () => {
                     const fallbackToLocal = () => {
-                        const local = JSON.parse(localStorage.getItem('geii_v12_local') || '{}');
+                        const local = JSON.parse(localStorage.getItem('geii_v13_local') || '{}');
                         if (local.profile) setProfile(local.profile);
                         if (local.s2Grades) setS2Grades(local.s2Grades);
                         if (local.history) setHistory(local.history);
                         if (local.taskStatus) setTaskStatus(local.taskStatus);
                         if (local.quickNote) setQuickNote(local.quickNote);
                         if (local.customLinks) setCustomLinks(local.customLinks);
-                        if (local.absences) setAbsences(local.absences);
                         setUser({ uid: 'local_mode_user' });
                     };
 
@@ -486,7 +496,6 @@
                                         if (d.taskStatus) setTaskStatus(d.taskStatus);
                                         if (d.quickNote) setQuickNote(d.quickNote);
                                         if (d.customLinks) setCustomLinks(d.customLinks);
-                                        if (d.absences) setAbsences(d.absences);
                                     }
                                 }, () => fallbackToLocal());
 
@@ -506,13 +515,13 @@
             // Save Data
             useEffect(() => {
                 if (!user) return;
-                const data = { profile, s2Grades, history, taskStatus, quickNote, customLinks, absences };
-                localStorage.setItem('geii_v12_local', JSON.stringify(data));
+                const data = { profile, s2Grades, history, taskStatus, quickNote, customLinks };
+                localStorage.setItem('geii_v13_local', JSON.stringify(data));
                 if (dbRef.current && user.uid !== 'local_mode_user') {
                     const { doc, setDoc } = window.firebaseModules;
                     setDoc(doc(dbRef.current, 'artifacts', appIdRef.current, 'users', user.uid, 'data', 'main'), data, { merge: true }).catch(()=>{});
                 }
-            }, [profile, s2Grades, history, taskStatus, quickNote, customLinks, absences, user]);
+            }, [profile, s2Grades, history, taskStatus, quickNote, customLinks, user]);
 
             // ROBUST AGENDA FETCH
             useEffect(() => {
@@ -523,8 +532,8 @@
                         
                         // Liste de proxies à tester
                         const proxies = [
-                            'https://corsproxy.io/?' + encodeURIComponent(profile.adeUrl),
                             'https://api.allorigins.win/raw?url=' + encodeURIComponent(profile.adeUrl),
+                            'https://corsproxy.io/?' + encodeURIComponent(profile.adeUrl),
                             'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(profile.adeUrl)
                         ];
 
@@ -533,42 +542,47 @@
                                 const res = await fetch(url);
                                 if (res.ok) {
                                     text = await res.text();
-                                    // Vérification basique du contenu iCal
                                     if (text.includes("BEGIN:VCALENDAR")) {
                                         success = true;
-                                        break; // Sortir de la boucle si succès
+                                        break; 
                                     }
                                 }
                             } catch(e) { console.warn("Proxy failed", url); }
                         }
 
                         if (!success) {
-                            // Fallback sur des données générées si tout échoue pour ne pas avoir un écran vide
                             setIsDemo(true);
-                            const d = new Date();
-                            const y = d.getFullYear(); const m = (d.getMonth()+1).toString().padStart(2,'0'); const day = d.getDate().toString().padStart(2,'0');
-                            text = `BEGIN:VCALENDAR
-BEGIN:VEVENT
-DTSTART:${y}${m}${day}T080000
-DTEND:${y}${m}${day}T100000
-SUMMARY:Cours de Secours (Connexion EDT échouée)
-LOCATION:Vérifiez votre lien
-END:VEVENT
-END:VCALENDAR`;
+                            // Fallback data if needed, but keeping it empty to show "No courses" instead of fake ones as requested
+                            // Or generate a specific error event
                         } else {
                             setIsDemo(false);
+                            const parsed = parseICS(text);
+                            // Filtrer événements passés très lointains pour optimiser
+                            const now = new Date();
+                            const pastLimit = new Date(now); pastLimit.setMonth(now.getMonth() - 2);
+                            const futureLimit = new Date(now); futureLimit.setMonth(now.getMonth() + 6);
+                            
+                            const validEvents = parsed.filter(e => e.start > pastLimit && e.start < futureLimit).sort((a,b) => a.start - b.start);
+                            setAllEvents(validEvents);
+                            
+                            // Load events for current week
+                            const d = new Date();
+                            const day = d.getDay();
+                            
+                            let mondayDiff;
+                            if (day === 0) mondayDiff = 1; 
+                            else if (day === 6) mondayDiff = 2; 
+                            else mondayDiff = 1 - day;
+
+                            const monday = new Date(d.setDate(d.getDate() + mondayDiff));
+                            monday.setHours(0,0,0,0);
+                            
+                            const sunday = new Date(monday);
+                            sunday.setDate(monday.getDate() + 7);
+
+                            const weeklyEvents = validEvents.filter(e => e.start >= monday && e.start < sunday);
+                            setEvents(weeklyEvents);
                         }
-                        
-                        const parsed = parseICS(text);
-                        setAllEvents(parsed.sort((a,b) => a.start - b.start));
-                        
-                        // Filtre semaine courante par défaut
-                        const d = new Date();
-                        const day = d.getDay();
-                        const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-                        const monday = new Date(d.setDate(diff)); monday.setHours(0,0,0,0);
-                        const sunday = new Date(monday); sunday.setDate(monday.getDate() + 7);
-                        setEvents(parsed.filter(e => e.start >= monday && e.start < sunday));
                     };
                     fetchSchedule();
                 }
@@ -602,14 +616,19 @@ END:VCALENDAR`;
 
             // ACTIONS
             const handleUpdateGrades = (g) => { const nm={...s2Grades,[selectedModule.id]:g}; setS2Grades(nm); };
-            const updateAbsence = (modId, delta) => { const na={...absences,[modId]:Math.max(0,(absences[modId]||0)+delta)}; setAbsences(na); };
             const toggleTask = (id) => { const nt={...taskStatus,[id]:!taskStatus[id]}; setTaskStatus(nt); };
 
             // ONBOARDING
             const LoginScreen = ({ onComplete }) => {
                 const [data, setData] = useState({ firstName: '', lastName: '', adeUrl: '' });
                 const [showHelp, setShowHelp] = useState(false);
-                const handleSubmit = () => { if(data.firstName && data.adeUrl) onComplete(data); else alert("Veuillez remplir votre Prénom et le lien ADE."); };
+                const handleSubmit = () => { 
+                    if(data.firstName) {
+                        // Use default ADE if empty to help user start
+                        const finalData = { ...data, adeUrl: data.adeUrl || DEFAULT_ADE };
+                        onComplete(finalData); 
+                    } else alert("Veuillez remplir votre Prénom."); 
+                };
 
                 return (
                     <div className="min-h-screen bg-bg flex flex-col justify-center px-6 py-10 relative overflow-hidden">
@@ -623,7 +642,7 @@ END:VCALENDAR`;
                             <div className="space-y-4">
                                 <div className="fintech-card p-1"><input value={data.firstName} onChange={e=>setData({...data, firstName:e.target.value})} placeholder="Ton Prénom" className="w-full bg-transparent p-4 text-white placeholder-white/30 outline-none"/><div className="h-[1px] bg-white/5 mx-4"></div><input value={data.lastName} onChange={e=>setData({...data, lastName:e.target.value})} placeholder="Ton Nom" className="w-full bg-transparent p-4 text-white placeholder-white/30 outline-none"/></div>
                                 <div className="space-y-2">
-                                    <div className="fintech-card p-1 flex items-center"><input value={data.adeUrl} onChange={e=>setData({...data, adeUrl:e.target.value})} placeholder="Lien Export Agenda (ADE)" className="w-full bg-transparent p-4 text-white placeholder-white/30 outline-none text-sm"/><button onClick={()=>setShowHelp(!showHelp)} className="p-3 text-primary"><Icon name="help-circle"/></button></div>
+                                    <div className="fintech-card p-1 flex items-center"><input value={data.adeUrl} onChange={e=>setData({...data, adeUrl:e.target.value})} placeholder="Lien ADE (Optionnel)" className="w-full bg-transparent p-4 text-white placeholder-white/30 outline-none text-sm"/><button onClick={()=>setShowHelp(!showHelp)} className="p-3 text-primary"><Icon name="help-circle"/></button></div>
                                     {showHelp && <div className="fintech-card p-4 text-sm text-subtext space-y-2 animate-in slide-in-from-top-2"><p className="font-bold text-white flex items-center gap-2"><Icon name="info" size={14}/> Tuto Rapide :</p><ol className="list-decimal list-inside space-y-1 ml-1"><li>Allez sur <b>ADE</b>.</li><li>Cliquez sur l'onglet <b>"Exporter"</b>.</li><li>Choisissez <b>"Générer URL"</b>.</li><li>Copiez le lien <code>https://edt...</code></li></ol></div>}
                                 </div>
                                 <button onClick={handleSubmit} className="w-full bg-primary text-white font-bold py-4 rounded-2xl shadow-lg shadow-primary/20 active:scale-95 transition-transform flex items-center justify-center gap-2">Commencer <Icon name="arrow-right" size={20}/></button>
@@ -649,13 +668,11 @@ END:VCALENDAR`;
                                 <button onClick={() => setView('AGENDA')} className="p-2 bg-card rounded-full border border-border text-subtext"><Icon name="x" size={20}/></button>
                             </div>
                             <div className="p-4 pb-10">
-                                <AgendaList events={allEvents.filter(e => e.start >= new Date()).slice(0, 50)} profile={profile} /> 
+                                <AgendaList events={allEvents.length > 0 ? allEvents : events} profile={profile} /> 
                             </div>
                         </div>
                     )}
                     
-                    {showMap && <CampusMapModal onClose={()=>setShowMap(false)} />}
-
                     <header className="p-6 pt-12 flex justify-between items-center bg-gradient-to-b from-primary/10 to-transparent sticky top-0 z-40 backdrop-blur-md">
                         <div><div className="text-xs font-bold text-primary mb-1 uppercase tracking-wider">Espace Étudiant</div><h1 className="text-3xl font-bold tracking-tight">Bonjour {profile.firstName}</h1></div>
                         <div onClick={()=>setView('SETTINGS')} className="w-10 h-10 rounded-full bg-card border border-white/10 flex items-center justify-center font-bold text-sm cursor-pointer hover:border-white/30 transition-colors">{profile.firstName[0]}</div>
@@ -699,11 +716,9 @@ END:VCALENDAR`;
                                             <button onClick={()=>setVisibleUEs({...visibleUEs, 21: !visibleUEs[21]})} className={`flex-1 py-3 rounded-xl text-xs font-bold border transition-all ${visibleUEs[21]?'bg-primary text-white border-primary shadow-lg shadow-primary/20':'bg-card text-subtext border-border'}`}>UE21 • Concevoir</button>
                                             <button onClick={()=>setVisibleUEs({...visibleUEs, 22: !visibleUEs[22]})} className={`flex-1 py-3 rounded-xl text-xs font-bold border transition-all ${visibleUEs[22]?'bg-white text-black border-white shadow-lg shadow-white/10':'bg-card text-subtext border-border'}`}>UE22 • Vérifier</button>
                                         </div>
-                                        
                                         <TargetSimulator />
-
-                                        {visibleUEs[21] && <UESection title="UE21 - Concevoir" ueKey="coef21" avg={stats.avg21} modules={MODULES_CONFIG_S2} gradesMap={s2Grades} absences={absences} onModuleClick={setSelectedModule} onAbsenceUpdate={updateAbsence} />}
-                                        {visibleUEs[22] && <UESection title="UE22 - Vérifier" ueKey="coef22" avg={stats.avg22} modules={MODULES_CONFIG_S2} gradesMap={s2Grades} absences={absences} onModuleClick={setSelectedModule} onAbsenceUpdate={updateAbsence} />}
+                                        {visibleUEs[21] && <UESection title="UE21 - Concevoir" ueKey="coef21" avg={stats.avg21} modules={MODULES_CONFIG_S2} gradesMap={s2Grades} onModuleClick={setSelectedModule} />}
+                                        {visibleUEs[22] && <UESection title="UE22 - Vérifier" ueKey="coef22" avg={stats.avg22} modules={MODULES_CONFIG_S2} gradesMap={s2Grades} onModuleClick={setSelectedModule} />}
                                     </div>
                                 ) : (
                                     <div className="space-y-4">
@@ -715,14 +730,14 @@ END:VCALENDAR`;
 
                         {view === 'AGENDA' && (
                             <div className="space-y-8 animate-in">
-                                <div><h2 className="text-3xl font-bold mb-6 tracking-tight">Planning</h2><AgendaList events={allEvents} profile={profile} onExpand={() => setView('FULL_AGENDA')} /></div>
+                                <div><h2 className="text-3xl font-bold mb-6 tracking-tight">Planning</h2><AgendaList events={allEvents.length > 0 ? allEvents : events} profile={profile} onExpand={() => setView('FULL_AGENDA')} /></div>
                                 <div><h2 className="text-3xl font-bold mb-6 tracking-tight">Deadlines</h2><div className="fintech-card p-2 border border-white/5"><QCMList tasks={TASKS_DATA} taskStatus={taskStatus} onToggle={toggleTask} /></div></div>
                             </div>
                         )}
 
                         {view === 'LIFE' && (
                             <div className="space-y-8 animate-in">
-                                <div><h2 className="text-3xl font-bold mb-6 tracking-tight">Campus</h2><div className="grid grid-cols-2 gap-4"><CrousWidget /><TrafficWidget /></div><button onClick={()=>setShowMap(true)} className="mt-3 w-full bg-card p-3 rounded-xl border border-white/5 flex items-center justify-center gap-2 hover:bg-white/5"><Icon name="map" size={16}/> Voir Carte Campus</button></div>
+                                <div><h2 className="text-3xl font-bold mb-6 tracking-tight">Campus</h2><div className="grid grid-cols-2 gap-4"><CrousWidget /><TrafficWidget /></div></div>
                                 <CustomLinksWidget links={customLinks} onAdd={l=>setCustomLinks([...customLinks, l])} onDelete={id=>setCustomLinks(customLinks.filter(l=>l.id!==id))} />
                                 <div><h2 className="text-3xl font-bold mb-6 tracking-tight">Liens Utiles</h2><div className="grid grid-cols-1 gap-3">{USEFUL_LINKS.map((link, i) => (<a key={i} href={link.url} target="_blank" className="flex items-center gap-4 fintech-card p-4 border border-white/5 active:scale-98 transition-transform hover:bg-cardHover"><div className={`w-12 h-12 rounded-full ${link.color} flex items-center justify-center text-white shadow-lg`}><Icon name={link.icon} size={20} /></div><span className="font-bold text-base">{link.name}</span><Icon name="chevron-right" size={20} className="ml-auto text-subtext/50"/></a>))}</div></div>
                             </div>
