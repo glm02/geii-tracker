@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>GEII OS v8.2.1</title>
+    <title>GEII OS v8.2.2</title>
     
     <!-- React & Dependencies -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
@@ -75,7 +75,6 @@
             PISCINE: "https://www.villeurbanne.fr/mon-quotidien/sport/piscines/centre-nautique-etienne-gagnaire"
         };
 
-        // Re-ajout de la constante manquante
         const USEFUL_LINKS = [
             { name: 'Moodle', url: LINKS.MOODLE, color: 'bg-orange-500', icon: 'graduation-cap' },
             { name: 'Mire GEII', url: LINKS.MIRE, color: 'bg-emerald-500', icon: 'file-text' },
@@ -139,7 +138,8 @@
             return <i data-lucide={name} width={size} height={size} className={className}></i>;
         };
 
-        const calculateSubjectAverage = (grades) => {
+        // Fonction renommée pour correspondre à l'appel dans App
+        const calcAvg = (grades) => {
             if (!grades || grades.length === 0) return null;
             let totalPoints = 0, totalCoef = 0;
             grades.forEach(g => { totalPoints += parseFloat(g.value) * parseFloat(g.coef); totalCoef += parseFloat(g.coef); });
@@ -409,7 +409,7 @@
                                     const msgs = [];
                                     snap.forEach(d => msgs.push(d.data()));
                                     setAnnouncements(msgs);
-                                }, () => {}); // No fallback needed for public announcements
+                                }, () => {}); 
                             } else fallbackToLocal();
                         });
                     } catch (e) { fallbackToLocal(); }
