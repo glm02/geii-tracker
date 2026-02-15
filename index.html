@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>GEII OS v8.0</title>
+    <title>GEII OS v8.1</title>
     
     <!-- React & Dependencies -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
@@ -56,12 +56,11 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect, useMemo } = React;
+        const { useState, useEffect, useMemo, useRef } = React;
 
         // --- CONFIG ---
         const DEFAULT_ADE = "https://edt.univ-lyon1.fr/jsp/custom/modules/plannings/anonymous_cal.jsp?resources=13655&projectId=1&calType=ical&firstDate=2025-08-18&lastDate=2026-08-01";
         
-        // Liens Utiles
         const USEFUL_LINKS = [
             { name: 'Moodle', url: "https://moodle.univ-lyon1.fr/", color: 'bg-orange-500', icon: 'graduation-cap' },
             { name: 'Mire GEII', url: "https://wwwgeii.univ-lyon1.fr/mire_geii.php", color: 'bg-emerald-500', icon: 'file-text' },
@@ -70,7 +69,6 @@
             { name: 'Justificatifs', url: "https://wwwgeii.univ-lyon1.fr/depot_certif", color: 'bg-purple-500', icon: 'paperclip' }
         ];
 
-        // Modules
         const MODULES = [
             { id: 'R2.01', label: 'Analyse', coef21: 1.1, coef22: 0 },
             { id: 'R2.02', label: 'Culture Com', coef21: 1.1, coef22: 0 },
@@ -87,7 +85,6 @@
             { id: 'PF2', label: 'Portfolio', coef21: 1.0, coef22: 1.0 },
         ];
 
-        // Helpers
         const Icon = ({ name, size=20, className="" }) => {
             useEffect(() => { lucide.createIcons(); }, [name]);
             return <i data-lucide={name} width={size} height={size} className={className}></i>;
@@ -104,25 +101,16 @@
 
         const WeatherWidget = () => {
             const [data, setData] = useState(null);
-            
             useEffect(() => {
-                // API Open-Meteo pour Villeurbanne
                 fetch('https://api.open-meteo.com/v1/forecast?latitude=45.77&longitude=4.88&current_weather=true')
                     .then(res => res.json())
                     .then(d => {
                         const code = d.current_weather.weathercode;
-                        let icon = 'sun';
-                        let desc = 'Ensoleillé';
+                        let icon = 'sun'; let desc = 'Ensoleillé';
                         if (code > 2) { icon = 'cloud'; desc = 'Nuageux'; }
                         if (code > 50) { icon = 'cloud-rain'; desc = 'Pluvieux'; }
                         if (code > 80) { icon = 'cloud-lightning'; desc = 'Orage'; }
-                        
-                        setData({
-                            temp: Math.round(d.current_weather.temperature),
-                            wind: Math.round(d.current_weather.windspeed),
-                            icon,
-                            desc
-                        });
+                        setData({ temp: Math.round(d.current_weather.temperature), wind: Math.round(d.current_weather.windspeed), icon, desc });
                     }).catch(e => console.error(e));
             }, []);
 
@@ -131,17 +119,10 @@
             return (
                 <div className="glass p-4 rounded-2xl h-32 relative overflow-hidden flex flex-col justify-between">
                     <div className="flex justify-between items-start z-10">
-                        <div>
-                            <div className="text-xs text-subtext font-bold uppercase">Villeurbanne</div>
-                            <div className="text-3xl font-bold mt-1">{data.temp}°</div>
-                        </div>
+                        <div><div className="text-xs text-subtext font-bold uppercase">Villeurbanne</div><div className="text-3xl font-bold mt-1">{data.temp}°</div></div>
                         <Icon name={data.icon} size={32} className="text-yellow-400"/>
                     </div>
-                    <div className="flex justify-between items-end z-10 text-xs text-subtext">
-                        <span>{data.desc}</span>
-                        <span className="flex items-center gap-1"><Icon name="wind" size={10}/> {data.wind} km/h</span>
-                    </div>
-                    {/* Background decoration */}
+                    <div className="flex justify-between items-end z-10 text-xs text-subtext"><span>{data.desc}</span><span className="flex items-center gap-1"><Icon name="wind" size={10}/> {data.wind} km/h</span></div>
                     <div className="absolute -bottom-4 -right-4 w-24 h-24 bg-yellow-500/10 rounded-full blur-xl"></div>
                 </div>
             );
@@ -150,36 +131,18 @@
         const CrousWidget = () => {
             const hour = new Date().getHours();
             const isOpen = hour >= 11 && hour < 14;
-            
             return (
                 <a href="https://www.crous-lyon.fr/restaurant/resto-u-gratte-ciel/" target="_blank" className="bg-[#1c1c1e] p-4 rounded-2xl border border-white/5 flex flex-col justify-between active:scale-95 transition-transform">
-                    <div className="flex justify-between items-start">
-                        <Icon name="utensils" className="text-orange-500" />
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full border ${isOpen ? 'bg-success/10 text-success border-success/20' : 'bg-danger/10 text-danger border-danger/20'}`}>
-                            {isOpen ? 'Ouvert' : 'Fermé'}
-                        </span>
-                    </div>
-                    <div>
-                        <div className="font-bold text-sm">Crous Gratte-Ciel</div>
-                        <div className="text-[10px] text-subtext flex items-center gap-1">Voir le menu <Icon name="external-link" size={10}/></div>
-                    </div>
+                    <div className="flex justify-between items-start"><Icon name="utensils" className="text-orange-500" /><span className={`text-[10px] px-2 py-0.5 rounded-full border ${isOpen ? 'bg-success/10 text-success border-success/20' : 'bg-danger/10 text-danger border-danger/20'}`}>{isOpen ? 'Ouvert' : 'Fermé'}</span></div>
+                    <div><div className="font-bold text-sm">Crous Gratte-Ciel</div><div className="text-[10px] text-subtext flex items-center gap-1">Voir le menu <Icon name="external-link" size={10}/></div></div>
                 </a>
             );
         };
 
         const TrafficWidget = () => (
             <a href="https://www.tcl.fr/info-trafic" target="_blank" className="bg-[#1c1c1e] p-4 rounded-2xl border border-white/5 flex flex-col justify-between active:scale-95 transition-transform">
-                <div className="flex justify-between items-start">
-                    <Icon name="train" className="text-red-500" />
-                    <div className="flex gap-1">
-                        <span className="w-2 h-2 rounded-full bg-success"></span>
-                        <span className="w-2 h-2 rounded-full bg-warning"></span>
-                    </div>
-                </div>
-                <div>
-                    <div className="font-bold text-sm">Info Trafic TCL</div>
-                    <div className="text-[10px] text-subtext flex items-center gap-1">Métro A, T1, C3...</div>
-                </div>
+                <div className="flex justify-between items-start"><Icon name="train" className="text-red-500" /><div className="flex gap-1"><span className="w-2 h-2 rounded-full bg-success"></span><span className="w-2 h-2 rounded-full bg-warning"></span></div></div>
+                <div><div className="font-bold text-sm">Info Trafic TCL</div><div className="text-[10px] text-subtext flex items-center gap-1">Métro A, T1, C3...</div></div>
             </a>
         );
 
@@ -206,22 +169,27 @@
             const dbRef = useRef(null);
             const appIdRef = useRef(typeof __app_id !== 'undefined' ? __app_id : 'default-app');
 
-            // Initialisation
+            // --- DATA LOADING LOGIC ---
             useEffect(() => {
                 const init = async () => {
-                    if (typeof __firebase_config === 'undefined' || !__firebase_config) {
-                        // Mode Offline / Demo
-                        const local = JSON.parse(localStorage.getItem('geii_v8') || '{}');
+                    const fallbackToLocal = () => {
+                        const local = JSON.parse(localStorage.getItem('geii_v8_local') || '{}');
                         if (local.profile) setProfile(local.profile);
                         if (local.s2Grades) setS2Grades(local.s2Grades);
-                        setUser({ uid: 'local' });
-                        return;
+                        setUser({ uid: 'local_mode_user' });
+                    };
+
+                    if (typeof __firebase_config === 'undefined' || !__firebase_config) {
+                        return fallbackToLocal();
                     }
 
-                    // Mode Connecté
+                    // Wait for Firebase
                     let attempts = 0;
                     while (!window.firebaseModules && attempts < 20) { await new Promise(r => setTimeout(r, 100)); attempts++; }
-                    if (!window.firebaseModules) return;
+                    
+                    if (!window.firebaseModules) {
+                        return fallbackToLocal();
+                    }
 
                     const { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, getFirestore, doc, onSnapshot, collection, query, orderBy } = window.firebaseModules;
                     
@@ -230,29 +198,43 @@
                         const auth = getAuth(app);
                         const db = getFirestore(app);
                         dbRef.current = db;
+                        
                         await signInAnonymously(auth);
                         
                         onAuthStateChanged(auth, (u) => {
-                            setUser(u);
                             if (u) {
-                                // User Data
-                                onSnapshot(doc(db, 'artifacts', appIdRef.current, 'users', u.uid, 'data'), (snap) => {
+                                setUser(u);
+                                // Load User Data with error handling
+                                const userDocRef = doc(db, 'artifacts', appIdRef.current, 'users', u.uid, 'data', 'main');
+                                onSnapshot(userDocRef, (snap) => {
                                     if (snap.exists()) {
                                         const d = snap.data();
                                         if (d.s2Grades) setS2Grades(d.s2Grades);
                                         if (d.profile) setProfile(d.profile);
                                     }
+                                }, (error) => {
+                                    console.warn("Firestore Read Error (User):", error);
+                                    fallbackToLocal();
                                 });
-                                // Announcements from Admin
+
+                                // Load Announcements with error handling
                                 const q = query(collection(db, 'artifacts', appIdRef.current, 'public', 'data', 'announcements'));
                                 onSnapshot(q, (snap) => {
                                     const msgs = [];
                                     snap.forEach(d => msgs.push(d.data()));
                                     setAnnouncements(msgs);
+                                }, (error) => {
+                                    console.warn("Firestore Read Error (Public):", error);
+                                    // Non-critical, ignore
                                 });
+                            } else {
+                                fallbackToLocal();
                             }
                         });
-                    } catch (e) { setUser({ uid: 'error' }); }
+                    } catch (e) { 
+                        console.error("Firebase Init Error:", e);
+                        fallbackToLocal(); 
+                    }
                 };
                 init();
             }, []);
@@ -261,18 +243,21 @@
             useEffect(() => {
                 if (!user) return;
                 const data = { profile, s2Grades };
-                if (!dbRef.current) localStorage.setItem('geii_v8', JSON.stringify(data));
-                else if (user.uid !== 'local' && user.uid !== 'error') {
+                
+                // Always save to local as backup
+                localStorage.setItem('geii_v8_local', JSON.stringify(data));
+
+                if (dbRef.current && user.uid !== 'local_mode_user') {
                     const { doc, setDoc } = window.firebaseModules;
-                    setDoc(doc(dbRef.current, 'artifacts', appIdRef.current, 'users', user.uid, 'data'), data, { merge: true });
+                    // Using setDoc with merge to be safe
+                    setDoc(doc(dbRef.current, 'artifacts', appIdRef.current, 'users', user.uid, 'data', 'main'), data, { merge: true })
+                        .catch(e => console.warn("Save Error:", e));
                 }
             }, [profile, s2Grades, user]);
 
-            // Agenda Logic (Simplifiée pour demo sans parseur complexe ici)
+            // Agenda Logic
             useEffect(() => {
-                // Simulation fetch EDT pour l'exemple
                 if(profile.adeUrl) {
-                    // Ici on mettrait le fetch ICS. Pour l'exemple UI :
                     setEvents([
                         { summary: 'Automatisme', location: 'TP3', start: new Date(new Date().setHours(8,0)), end: new Date(new Date().setHours(10,0)) },
                         { summary: 'Informatique', location: 'I12', start: new Date(new Date().setHours(10,15)), end: new Date(new Date().setHours(12,15)) }
@@ -280,34 +265,23 @@
                 }
             }, [profile.adeUrl]);
 
-            if (!user) return <div className="h-screen bg-black flex items-center justify-center text-white">Chargement...</div>;
+            if (!user) return <div className="h-screen bg-black flex items-center justify-center text-white"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>;
 
             return (
                 <div className="min-h-screen bg-black text-white pb-24 font-sans">
-                    
-                    {/* Header Global */}
                     <div className="p-6 pt-12 flex justify-between items-center bg-gradient-to-b from-primary/10 to-transparent sticky top-0 z-40 backdrop-blur-md">
-                        <div>
-                            <div className="text-xs font-bold text-primary mb-1 uppercase">Espace Étudiant</div>
-                            <h1 className="text-2xl font-bold">Bonjour {profile.firstName}</h1>
-                        </div>
+                        <div><div className="text-xs font-bold text-primary mb-1 uppercase">Espace Étudiant</div><h1 className="text-2xl font-bold">Bonjour {profile.firstName}</h1></div>
                         <div onClick={()=>setView('SETTINGS')} className="w-10 h-10 rounded-full bg-card border border-white/10 flex items-center justify-center font-bold text-sm cursor-pointer">{profile.firstName[0]}</div>
                     </div>
 
                     <main className="px-4 space-y-6">
-                        
-                        {/* FLASH INFO */}
                         {announcements.length > 0 && (
                             <div className="bg-primary text-white p-3 rounded-xl flex items-start gap-3 shadow-lg mb-4">
                                 <Icon name="info" size={20} className="mt-0.5" />
-                                <div>
-                                    <div className="font-bold text-sm">Information BDE/Admin</div>
-                                    <div className="text-sm opacity-90">{announcements[0].text}</div>
-                                </div>
+                                <div><div className="font-bold text-sm">Info Admin</div><div className="text-sm opacity-90">{announcements[0].text}</div></div>
                             </div>
                         )}
 
-                        {/* HOME */}
                         {view === 'HOME' && (
                             <div className="space-y-4 animate-in">
                                 <div className="grid grid-cols-2 gap-3">
@@ -323,55 +297,23 @@
                                     {events.map((e, i) => (
                                         <div key={i} className="flex gap-4 mb-3 last:mb-0">
                                             <div className="text-xs font-bold text-subtext w-10 pt-1">{e.start.getHours()}h{e.start.getMinutes()||'00'}</div>
-                                            <div className="flex-1 bg-white/5 p-2 rounded-lg">
-                                                <div className="font-bold text-sm">{e.summary}</div>
-                                                <div className="text-xs text-subtext">{e.location}</div>
-                                            </div>
+                                            <div className="flex-1 bg-white/5 p-2 rounded-lg"><div className="font-bold text-sm">{e.summary}</div><div className="text-xs text-subtext">{e.location}</div></div>
                                         </div>
                                     ))}
                                 </div>
                             </div>
                         )}
 
-                        {/* LIFE */}
                         {view === 'LIFE' && (
                             <div className="space-y-6 animate-in">
-                                <div>
-                                    <h2 className="text-xl font-bold mb-4">Services Campus</h2>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <CrousWidget />
-                                        <TrafficWidget />
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <h2 className="text-xl font-bold mb-4">Liens Utiles</h2>
-                                    <div className="grid grid-cols-1 gap-3">
-                                        {USEFUL_LINKS.map((link, i) => (
-                                            <a key={i} href={link.url} target="_blank" className="flex items-center gap-4 bg-card p-3 rounded-xl border border-white/5 active:scale-95 transition-transform">
-                                                <div className={`w-10 h-10 rounded-full ${link.color} flex items-center justify-center text-white shadow-lg`}>
-                                                    <Icon name={link.icon} size={20} />
-                                                </div>
-                                                <span className="font-bold text-sm">{link.name}</span>
-                                                <Icon name="chevron-right" size={16} className="ml-auto text-subtext"/>
-                                            </a>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                <div className="bg-gradient-to-br from-pink-900/20 to-purple-900/20 border border-pink-500/20 p-5 rounded-2xl">
-                                    <h3 className="font-bold text-white mb-2 flex items-center gap-2"><Icon name="heart-pulse" size={20} className="text-pink-500"/> Urgences</h3>
-                                    <div className="space-y-2 text-sm">
-                                        <div className="flex justify-between"><span>Infirmerie</span><a href="tel:0472448000" className="font-mono text-primary">04 72 44 80 00</a></div>
-                                        <div className="flex justify-between"><span>Sécurité</span><a href="tel:0472447996" className="font-mono text-primary">04 72 44 79 96</a></div>
-                                    </div>
-                                </div>
+                                <div><h2 className="text-xl font-bold mb-4">Services Campus</h2><div className="grid grid-cols-2 gap-3"><CrousWidget /><TrafficWidget /></div></div>
+                                <div><h2 className="text-xl font-bold mb-4">Liens Utiles</h2><div className="grid grid-cols-1 gap-3">{USEFUL_LINKS.map((link, i) => (<a key={i} href={link.url} target="_blank" className="flex items-center gap-4 bg-card p-3 rounded-xl border border-white/5 active:scale-95 transition-transform"><div className={`w-10 h-10 rounded-full ${link.color} flex items-center justify-center text-white shadow-lg`}><Icon name={link.icon} size={20} /></div><span className="font-bold text-sm">{link.name}</span><Icon name="chevron-right" size={16} className="ml-auto text-subtext"/></a>))}</div></div>
+                                <div className="bg-gradient-to-br from-pink-900/20 to-purple-900/20 border border-pink-500/20 p-5 rounded-2xl"><h3 className="font-bold text-white mb-2 flex items-center gap-2"><Icon name="heart-pulse" size={20} className="text-pink-500"/> Urgences</h3><div className="space-y-2 text-sm"><div className="flex justify-between"><span>Infirmerie</span><a href="tel:0472448000" className="font-mono text-primary">04 72 44 80 00</a></div><div className="flex justify-between"><span>Sécurité</span><a href="tel:0472447996" className="font-mono text-primary">04 72 44 79 96</a></div></div></div>
                             </div>
                         )}
 
-                        {/* OTHER VIEWS (Placeholders for brevity, full logic in previous iterations) */}
-                        {view === 'NOTES' && <div className="text-center py-20 text-subtext">Section Notes (Voir v7 pour détail complet)</div>}
-                        {view === 'AGENDA' && <div className="text-center py-20 text-subtext">Section Agenda (Voir v7 pour détail complet)</div>}
+                        {view === 'NOTES' && <div className="text-center py-20 text-subtext">Section Notes (Détail v7)</div>}
+                        {view === 'AGENDA' && <div className="text-center py-20 text-subtext">Section Agenda (Détail v7)</div>}
                         {view === 'SETTINGS' && (
                             <div className="space-y-4 animate-in">
                                 <h2 className="text-xl font-bold">Mon Compte</h2>
@@ -382,9 +324,7 @@
                                 <button onClick={()=>{localStorage.clear();window.location.reload()}} className="w-full py-4 text-danger font-bold text-sm bg-danger/10 rounded-xl border border-danger/20">Réinitialiser l'application</button>
                             </div>
                         )}
-
                     </main>
-
                     <BottomNav active={view} setView={setView} />
                 </div>
             );
