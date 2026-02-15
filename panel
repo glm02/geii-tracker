@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="fr" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GEII Admin Control</title>
+    
+    <!-- React & Dependencies -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot, collection, getDoc, updateDoc, deleteDoc, addDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        window.firebaseModules = { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, getFirestore, doc, setDoc, updateDoc, deleteDoc, addDoc, onSnapshot, collection, getDoc };
+    </script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        bg: '#09090b',
+                        card: '#18181b',
+                        border: '#27272a',
+                        primary: '#6366f1', // Indigo pour l'admin (différent du bleu étudiant)
+                        danger: '#ef4444',
+                        success: '#10b981',
+                        text: '#FFFFFF',
+                        subtext: '#a1a1aa',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #09090b; color: #fff; }
+        .glass { background: rgba(39, 39, 42, 0.4); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.05); }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // --- ICONS ---
+        const Icon = ({ name, size = 20, className = "" }) => {
+            useEffect(() => { lucide.createIcons(); }, [name]);
+            return <i data-lucide={name} width={size} height={size} className={className}></i>;
+        };
+
+        // --- COMPONENTS ---
+
+        const StatCard = ({ title, value, icon, trend }) => (
+            <div className="bg-card p-6 rounded-xl border border-border flex flex-col justify-between h-32">
+                <div className="flex justify-between items-start">
+                    <div className="p-2 bg-primary/10 rounded-lg text-primary"><Icon name={icon} size={20}/></div>
+                    {trend && <span className="text-xs font-bold text-success flex items-center gap-1">+{trend}% <Icon name="trending-up" size={12}/></span>}
+                </div>
+                <div>
+                    <div className="text-3xl font-bold">{value}</div>
+                    <div className="text-xs text-subtext uppercase font-bold tracking-wider mt-1">{title}</div>
+                </div>
+            </div>
+        );
+
+        const MessageEditor = ({ onPost }) => {
+            const [msg, setMsg] = useState('');
+            const [type, setType] = useState('INFO'); // INFO, WARN, DANGER
+
+            return (
+                <div className="bg-card p-6 rounded-xl border border-border">
+                    <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><Icon name="send" size={18}/> Diffuser un Flash Info</h3>
+                    <div className="space-y-4">
+                        <div className="flex gap-2">
+                            {['INFO', 'WARN', 'DANGER'].map(t => (
+                                <button key={t} onClick={()=>setType(t)} className={`px-4 py-2 rounded-lg text-xs font-bold border transition-all ${type === t ? 'bg-white text-black border-white' : 'bg-transparent text-subtext border-border'}`}>
+                                    {t}
+                                </button>
+                            ))}
+                        </div>
+                        <textarea 
+                            value={msg} 
+                            onChange={e=>setMsg(e.target.value)} 
+                            placeholder="Ex: Absence M. Dupont, Salle A2..." 
+                            className="w-full bg-black/30 border border-border rounded-xl p-4 text-sm focus:border-primary outline-none min-h-[100px]"
+                        ></textarea>
+                        <button 
+                            onClick={() => { if(msg) { onPost({ text: msg, type, date: new Date().toISOString() }); setMsg(''); }}}
+                            className="w-full bg-primary hover:bg-indigo-600 text-white font-bold py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
+                        >
+                            <Icon name="radio" size={16}/> Envoyer à tous les étudiants
+                        </button>
+                    </div>
+                </div>
+            );
+        };
+
+        const ConfigEditor = ({ config, onSave }) => {
+            const [localConfig, setLocalConfig] = useState(config || { infirmerie: '', securite: '', crousUrl: '' });
+            
+            useEffect(() => { if(config) setLocalConfig(config); }, [config]);
+
+            const handleChange = (key, val) => setLocalConfig({...localConfig, [key]: val});
+
+            return (
+                <div className="bg-card p-6 rounded-xl border border-border">
+                    <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><Icon name="settings" size={18}/> Configuration Globale</h3>
+                    <div className="space-y-4">
+                        <div>
+                            <label className="text-xs text-subtext font-bold uppercase block mb-1">Numéro Infirmerie</label>
+                            <div className="flex items-center bg-black/30 border border-border rounded-lg px-3">
+                                <Icon name="phone" size={14} className="text-subtext"/>
+                                <input value={localConfig.infirmerie} onChange={e=>handleChange('infirmerie', e.target.value)} className="bg-transparent w-full p-2 text-sm outline-none font-mono"/>
+                            </div>
+                        </div>
+                        <div>
+                            <label className="text-xs text-subtext font-bold uppercase block mb-1">Numéro Sécurité</label>
+                            <div className="flex items-center bg-black/30 border border-border rounded-lg px-3">
+                                <Icon name="shield-alert" size={14} className="text-subtext"/>
+                                <input value={localConfig.securite} onChange={e=>handleChange('securite', e.target.value)} className="bg-transparent w-full p-2 text-sm outline-none font-mono"/>
+                            </div>
+                        </div>
+                        <div>
+                            <label className="text-xs text-subtext font-bold uppercase block mb-1">Lien Menu Crous</label>
+                            <div className="flex items-center bg-black/30 border border-border rounded-lg px-3">
+                                <Icon name="link" size={14} className="text-subtext"/>
+                                <input value={localConfig.crousUrl} onChange={e=>handleChange('crousUrl', e.target.value)} className="bg-transparent w-full p-2 text-sm outline-none"/>
+                            </div>
+                        </div>
+                        <button onClick={()=>onSave(localConfig)} className="w-full border border-primary text-primary hover:bg-primary/10 font-bold py-3 rounded-xl transition-colors">
+                            Sauvegarder les modifications
+                        </button>
+                    </div>
+                </div>
+            );
+        };
+
+        const ActiveMessages = ({ messages, onDelete }) => (
+            <div className="bg-card p-6 rounded-xl border border-border col-span-2">
+                <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><Icon name="list" size={18}/> Messages Actifs</h3>
+                <div className="space-y-2">
+                    {messages.length === 0 ? <div className="text-subtext text-sm italic">Aucun message diffusé.</div> : 
+                    messages.map(m => (
+                        <div key={m.id} className="flex justify-between items-center p-3 bg-black/30 rounded-lg border border-border">
+                            <div className="flex items-center gap-3">
+                                <div className={`w-2 h-2 rounded-full ${m.type === 'DANGER' ? 'bg-danger' : m.type === 'WARN' ? 'bg-warning' : 'bg-primary'}`}></div>
+                                <div>
+                                    <div className="text-sm text-white font-medium">{m.text}</div>
+                                    <div className="text-[10px] text-subtext">{new Date(m.date).toLocaleString()}</div>
+                                </div>
+                            </div>
+                            <button onClick={()=>onDelete(m.id)} className="text-danger hover:bg-danger/10 p-2 rounded-lg transition-colors"><Icon name="trash" size={16}/></button>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
+
+        // --- MAIN APP ---
+        const App = () => {
+            const [user, setUser] = useState(null);
+            const [password, setPassword] = useState('');
+            const [error, setError] = useState('');
+            
+            // Admin Data
+            const [messages, setMessages] = useState([]);
+            const [config, setConfig] = useState({ infirmerie: '04 72 44 80 00', securite: '04 72 44 79 96', crousUrl: 'https://...' });
+            const [stats, setStats] = useState({ users: 142, online: 12 });
+
+            const dbRef = useRef(null);
+            const appIdRef = useRef(typeof __app_id !== 'undefined' ? __app_id : 'default-geii-admin');
+
+            // 1. LOGIN SIMULATION
+            const handleLogin = (e) => {
+                e.preventDefault();
+                if(password === 'admin123') { // Simple check for demo
+                    initFirebase();
+                } else {
+                    setError('Mot de passe incorrect');
+                }
+            };
+
+            const initFirebase = async () => {
+                if (!window.firebaseModules) return;
+                const { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, getFirestore, doc, onSnapshot, collection } = window.firebaseModules;
+                
+                try {
+                    const app = initializeApp(JSON.parse(__firebase_config));
+                    const auth = getAuth(app);
+                    const db = getFirestore(app);
+                    dbRef.current = db;
+
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token);
+                    else await signInAnonymously(auth);
+
+                    onAuthStateChanged(auth, (u) => {
+                        setUser(u);
+                        // Listen to Config
+                        onSnapshot(doc(db, 'artifacts', appIdRef.current, 'public', 'data', 'config'), (snap) => {
+                            if (snap.exists()) setConfig(snap.data());
+                        });
+                        // Listen to Messages
+                        onSnapshot(collection(db, 'artifacts', appIdRef.current, 'public', 'data', 'announcements'), (snap) => {
+                            const msgs = [];
+                            snap.forEach(d => msgs.push({ id: d.id, ...d.data() }));
+                            setMessages(msgs);
+                        });
+                    });
+                } catch(e) { console.error(e); }
+            };
+
+            // 2. ACTIONS
+            const postMessage = async (msgData) => {
+                if (!dbRef.current) return;
+                const { collection, addDoc } = window.firebaseModules;
+                await addDoc(collection(dbRef.current, 'artifacts', appIdRef.current, 'public', 'data', 'announcements'), msgData);
+            };
+
+            const deleteMessage = async (id) => {
+                if (!dbRef.current) return;
+                const { doc, deleteDoc } = window.firebaseModules;
+                await deleteDoc(doc(dbRef.current, 'artifacts', appIdRef.current, 'public', 'data', 'announcements', id));
+            };
+
+            const saveConfig = async (newConfig) => {
+                if (!dbRef.current) return;
+                const { doc, setDoc } = window.firebaseModules;
+                await setDoc(doc(dbRef.current, 'artifacts', appIdRef.current, 'public', 'data', 'config'), newConfig);
+                alert("Configuration mise à jour !");
+            };
+
+            // LOGIN VIEW
+            if (!user) return (
+                <div className="min-h-screen bg-bg flex items-center justify-center p-4">
+                    <div className="bg-card w-full max-w-sm p-8 rounded-2xl border border-border shadow-2xl">
+                        <div className="flex justify-center mb-6">
+                            <div className="w-16 h-16 bg-primary/20 rounded-2xl flex items-center justify-center text-primary"><Icon name="shield-check" size={32}/></div>
+                        </div>
+                        <h1 className="text-2xl font-bold text-center mb-1">Admin Panel</h1>
+                        <p className="text-center text-subtext text-sm mb-6">Accès réservé au BDE / Administration</p>
+                        <form onSubmit={handleLogin} className="space-y-4">
+                            <div>
+                                <input 
+                                    type="password" 
+                                    placeholder="Mot de passe" 
+                                    value={password}
+                                    onChange={e=>setPassword(e.target.value)}
+                                    className="w-full bg-black/50 border border-border rounded-xl p-3 text-white focus:border-primary outline-none transition-colors"
+                                />
+                            </div>
+                            {error && <p className="text-danger text-xs text-center">{error}</p>}
+                            <button type="submit" className="w-full bg-primary hover:bg-indigo-600 text-white font-bold py-3 rounded-xl transition-colors">Connexion</button>
+                        </form>
+                    </div>
+                </div>
+            );
+
+            // DASHBOARD VIEW
+            return (
+                <div className="min-h-screen bg-bg text-white font-sans flex">
+                    
+                    {/* SIDEBAR */}
+                    <aside className="w-64 border-r border-border bg-card hidden md:flex flex-col p-6">
+                        <div className="flex items-center gap-3 mb-10">
+                            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-white"><Icon name="layout-dashboard" size={18}/></div>
+                            <span className="font-bold text-lg">GEII Admin</span>
+                        </div>
+                        <nav className="space-y-2 flex-1">
+                            <button className="w-full flex items-center gap-3 bg-primary/10 text-primary px-4 py-3 rounded-xl font-bold text-sm"><Icon name="activity" size={18}/> Dashboard</button>
+                            <button className="w-full flex items-center gap-3 text-subtext hover:text-white px-4 py-3 rounded-xl font-medium text-sm transition-colors"><Icon name="users" size={18}/> Étudiants</button>
+                            <button className="w-full flex items-center gap-3 text-subtext hover:text-white px-4 py-3 rounded-xl font-medium text-sm transition-colors"><Icon name="file-text" size={18}/> Justificatifs</button>
+                        </nav>
+                        <button onClick={()=>window.location.reload()} className="flex items-center gap-2 text-subtext hover:text-danger px-4 py-2 text-sm"><Icon name="log-out" size={16}/> Déconnexion</button>
+                    </aside>
+
+                    {/* MAIN CONTENT */}
+                    <main className="flex-1 p-8 overflow-y-auto">
+                        <header className="flex justify-between items-center mb-8">
+                            <div>
+                                <h1 className="text-2xl font-bold">Vue d'ensemble</h1>
+                                <p className="text-subtext text-sm">Gérez les informations de l'application mobile.</p>
+                            </div>
+                            <div className="flex gap-2">
+                                <span className="flex items-center gap-2 bg-success/10 text-success px-3 py-1.5 rounded-lg text-xs font-bold border border-success/20">
+                                    <span className="w-2 h-2 rounded-full bg-success animate-pulse"></span> Système en ligne
+                                </span>
+                            </div>
+                        </header>
+
+                        {/* STATS */}
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                            <StatCard title="Utilisateurs Actifs" value={stats.users} icon="users" trend={12} />
+                            <StatCard title="En ligne (Simulé)" value={stats.online} icon="wifi" />
+                            <StatCard title="Messages" value={messages.length} icon="message-square" />
+                            <StatCard title="Version App" value="v8.0" icon="smartphone" />
+                        </div>
+
+                        {/* ACTIONS GRID */}
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                            
+                            {/* GAUCHE : MESSAGERIE */}
+                            <div className="lg:col-span-2 space-y-6">
+                                <MessageEditor onPost={postMessage} />
+                                <ActiveMessages messages={messages} onDelete={deleteMessage} />
+                            </div>
+
+                            {/* DROITE : CONFIG */}
+                            <div className="space-y-6">
+                                <ConfigEditor config={config} onSave={saveConfig} />
+                                
+                                {/* EXTRA CARD */}
+                                <div className="bg-gradient-to-br from-purple-900/20 to-blue-900/20 p-6 rounded-xl border border-primary/20">
+                                    <h3 className="font-bold mb-2">💡 Astuce Admin</h3>
+                                    <p className="text-sm text-subtext">Utilisez le type "DANGER" pour les alertes critiques (Panne métro, Annulation cours).</p>
+                                </div>
+                            </div>
+
+                        </div>
+                    </main>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
